@@ -1,14 +1,22 @@
 Easy Route ! — mise en ligne
 
-1. Mettre ce dossier en ligne (au choix)
-   - Netlify Drop : ouvrez https://app.netlify.com/drop et glissez-y le dossier entier.
-   - GitHub Pages : mettez le contenu du dossier dans un dépôt, puis Settings > Pages > Deploy from branch.
-   - Votre serveur : copiez le dossier tel quel, en HTTPS.
+1. Le site
+   Easy Route est servi par GitHub Pages depuis la branche main, sous le domaine
+   easyroute.cloud (fichier CNAME). Chaque fusion sur main le met à jour en une à
+   deux minutes, sans étape de compilation.
+   Quand css/easyroute.css ou js/easyroute.js change, changez aussi le numéro ?v=…
+   qui suit leur nom dans index.html (par exemple la date du jour).
 
-2. Sur l'iPhone
-   Ouvrez l'adresse dans Safari > Partager > « Sur l'écran d'accueil ».
+2. Les liens courts
+   Le dossier worker/ contient le service Cloudflare (Worker + base D1) qui range
+   les fiches partagées. Voir la section « Liens courts » du README.
 
-3. Police de l'étiquette (facultatif)
+3. Sur l'iPhone
+   Ouvrez https://easyroute.cloud dans Safari > Partager > « Sur l'écran d'accueil ».
+
+4. Police de l'étiquette (facultatif)
    Barlow par défaut. Dans l'outil, « Charger une police » accepte un fichier
    .ttf / .otf / .woff2, mémorisé sur l'appareil. Ne mettez pas de police
    commerciale dans le dépôt public.
+
+Tout le reste est décrit dans README.md.

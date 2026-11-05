@@ -66,7 +66,6 @@ Le bouton *Partager* envoie le plan A4 et le message ensemble vers WhatsApp, Mai
 | `css/easyroute.css` | L’apparence : couleurs, mise en page, version téléphone. |
 | `js/easyroute.js` | Tout le fonctionnement : carte, plan A4, étiquette, message, agenda, fiche partagée, sessions et lieux. |
 | `manifest.webmanifest`, `icons/` | Installation sur l’écran d’accueil (nom, icône, plein écran). |
-| `Archive/` | Ancienne version de l’outil. |
 | `tests/`, `package.json`, `playwright.config.js`, `.github/workflows/` | Tests automatiques (voir ci-dessous). |
 
 Le site est servi par GitHub Pages depuis la branche `main`, sous le domaine `easyroute.cloud` (fichier `CNAME` ; DNS chez Cloudflare, lignes GitHub en *DNS only*). Les anciennes adresses `fedorterrell.github.io/easyroute/…` redirigent vers le domaine. Chaque fusion sur `main` met le site à jour en une à deux minutes. Aucune étape de compilation : les fichiers sont servis tels quels.
@@ -111,7 +110,9 @@ Le dossier `worker/` contient le code du service qui range les fiches partagées
 - **QR codes** : [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) de Kazuhiko Arase, licence MIT.
 - **Polices de l’interface** : Barlow et JetBrains Mono, via Google Fonts, licence SIL Open Font License.
 
-Aucune donnée n’est envoyée à un serveur propre à Easy Route : tout se passe dans le navigateur. Seules les adresses recherchées partent vers Nominatim ou Photon, et les tuiles de carte sont demandées à Esri.
+Le travail se fait dans le navigateur. Les adresses recherchées partent vers Nominatim ou Photon, et les tuiles de carte sont demandées à Esri.
+
+Seul le **lien de fiche court** envoie des données au service d’Easy Route (`api.easyroute.cloud`, voir *Liens courts*) : la fiche (événement, lieu, points utiles, infos pratiques, dont le téléphone du contact et le code d’accès) et son événement d’agenda, sans le logo. Elle est envoyée et tenue à jour automatiquement dès qu’une adresse ou une position est saisie, même si le lien n’est pas mis dans le message. Toute personne qui a le lien peut la lire. Les sessions, les lieux enregistrés, les logos et les polices restent, eux, sur l’appareil.
 
 ## Limites connues
 
