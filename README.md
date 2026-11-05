@@ -94,9 +94,10 @@ Ces fichiers ne servent qu’aux tests : le site lui-même n’a besoin d’aucu
 Le dossier `worker/` contient le code du service qui range les fiches partagées : un Cloudflare Worker relié à une base D1 (offre gratuite).
 
 - Adresse : `https://api.easyroute.cloud` (constante `SHORT_API` dans `js/easyroute.js`), domaine personnalisé du Worker (onglet *Domains*). L’ancienne adresse `https://easyroute-fiches.piotrskotnicki.workers.dev` répond toujours, pour les liens déjà envoyés.
-- `POST /f` avec `{"d": "<fiche compressée>"}` renvoie `{"id": "…", "key": "…"}` ; `PUT /f/<id>` avec `{"d": …, "key": …}` met la fiche à jour sous le même lien ; `GET /f/<id>` renvoie la fiche ; `GET /ics/<id>` renvoie son événement d’agenda (.ics), envoyé par Easy Route avec la fiche (champ `ics`). Seul le site Easy Route peut créer ou modifier des fiches ; quiconque a le lien peut la lire.
+- `POST /f` avec `{"d": "<fiche compressée>"}` renvoie `{"id": "…", "key": "…"}` ; `PUT /f/<id>` avec `{"d": …, "key": …}` met la fiche à jour sous le même lien ; `GET /f/<id>` renvoie la fiche ; `GET /ics/<id>` renvoie son événement d’agenda (.ics), envoyé par Easy Route avec la fiche (champ `ics`). Quiconque a le lien peut lire la fiche ; la modifier demande sa clé secrète. Les navigateurs ne peuvent créer des fiches que depuis le site Easy Route (contrôle de l’en-tête `Origin`), mais ce contrôle n’arrête pas un script : la création est donc limitée par une règle Cloudflare (voir plus bas).
 - Identifiant aléatoire de 10 caractères (impossible à deviner) ; la clé secrète n’est connue que de l’appareil qui a créé la fiche, la base n’en garde qu’une empreinte.
 - Fiches conservées environ 13 mois après leur dernière modification (`KEEP_DAYS`), puis effacées.
+- Limite de création : règle Cloudflare *Rate limiting* « Easy Route – création de fiches » (zone `easyroute.cloud`, Sécurité > règles de limitation de débit) : chemin d’URI égal à `/f` (seul `api.easyroute.cloud` passe par Cloudflare : le site est en *DNS only*), 5 requêtes par 10 s et par adresse IP, puis blocage 10 s. Elle ne touche ni les mises à jour (`PUT /f/<id>`) ni les lectures.
 - Mise à jour du service : Cloudflare > Workers & Pages > `easyroute-fiches` > *Edit code*, coller le contenu de `worker/easyroute-fiches.js`, *Deploy*. La base D1 doit rester reliée sous le nom `DB`.
 
 ## Personnaliser
