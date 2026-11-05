@@ -820,12 +820,15 @@
   async function fetchSuggestions(q) {
     if (suggestAbort) suggestAbort.abort();
     suggestAbort = new AbortController();
+    const signal = suggestAbort.signal;
     const c = st.center || st.place;
     const bias = c ? "&lat=" + c.lat.toFixed(4) + "&lon=" + c.lng.toFixed(4) : "&lat=46.2&lon=6.1";
+    let list = [];
+    // 1. Photon: fast, typo-tolerant, but rebuilt from OSM with a delay of several days
     try {
-      const r = await fetch("https://photon.komoot.io/api/?limit=6&lang=fr" + bias + "&q=" + encodeURIComponent(q), { signal: suggestAbort.signal });
+      const r = await fetch("https://photon.komoot.io/api/?limit=6&lang=fr" + bias + "&q=" + encodeURIComponent(q), { signal });
       const j = await r.json();
-      suggestions = (j.features || []).filter((f) => f.properties && f.properties.name).map((f) => {
+      list = (j.features || []).filter((f) => f.properties && f.properties.name).map((f) => {
         const p = f.properties;
         return {
           name: p.name,
@@ -833,9 +836,29 @@
           lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
         };
       });
-      suggestIndex = -1;
-      if (document.activeElement === els.name) showSuggest();
-    } catch (e) { if (!e || e.name !== "AbortError") { suggestions = []; closeSuggest(); } }
+    } catch (e) { if (e && e.name === "AbortError") return; }
+    // 2. Nominatim fallback: up to date within minutes, so recently added places show up
+    if (list.length < 3) {
+      try {
+        const r = await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=5&countrycodes=fr,ch,it&q=" + encodeURIComponent(q), { signal, headers: { "Accept-Language": "fr" } });
+        const j = await r.json();
+        for (const h of j || []) {
+          if (!h.name) continue;
+          const lat = +h.lat, lng = +h.lon;
+          if (list.some((s) => s.name === h.name && Math.abs(s.lat - lat) < 0.001 && Math.abs(s.lng - lng) < 0.001)) continue;
+          const a = h.address || {};
+          list.push({
+            name: h.name,
+            address: formatAddress({ house: a.house_number, street: a.road, postcode: a.postcode, city: a.city || a.town || a.village || a.municipality, country: a.country, cc: a.country_code }),
+            lat, lng,
+          });
+        }
+      } catch (e) { if (e && e.name === "AbortError") return; }
+    }
+    if (signal.aborted) return;
+    suggestions = list.slice(0, 6);
+    suggestIndex = -1;
+    if (document.activeElement === els.name && suggestions.length) showSuggest(); else closeSuggest();
   }
   function pickSuggestion(i) {
     const sg = suggestions[i];

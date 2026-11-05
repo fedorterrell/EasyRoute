@@ -46,3 +46,16 @@ test("sans réseau, pas de liste et pas d’erreur", async ({ page }) => {
   await page.waitForTimeout(800);
   await expect(page.locator("#nameSuggest")).toBeHidden();
 });
+
+test("un lieu absent de Photon (ajouté récemment à OSM) est proposé via Nominatim", async ({ page }) => {
+  await page.context().route(/photon\.komoot\.io/, (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify({ features: [] }) }));
+  await page.context().route(/nominatim\.openstreetmap\.org\/search/, (r) => r.fulfill({ contentType: "application/json",
+    body: JSON.stringify([{ name: "Sixthemes", lat: "46.0681082", lon: "6.4166651",
+      address: { house_number: "175", road: "Rue du Lac", postcode: "74130", town: "Bonneville", country: "France", country_code: "fr" } }]) }));
+  await page.fill("#name", "");
+  await page.locator("#name").pressSequentially("Sixthemes");
+  await expect(page.locator("#nameSuggest li[role=option]")).toHaveCount(1);
+  await page.locator("#nameSuggest li[role=option]").first().click();
+  await expect(page.locator("#addr")).toHaveValue("175 Rue du Lac, 74130 Bonneville");
+  await expect(page.locator("#coords")).toHaveValue("46.0681082, 6.4166651");
+});
