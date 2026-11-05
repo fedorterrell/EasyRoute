@@ -1,4 +1,4 @@
-const { test, expect, placePoint, message, openAsTeam } = require("./helpers");
+const { test, expect, placePoint, message, openAsTeam, setupRoutes } = require("./helpers");
 
 async function ficheLink(page) {
   await page.click("#tabMsg");
@@ -56,6 +56,44 @@ test("on peut retirer le lien de fiche du message", async ({ page }) => {
   await ficheLink(page);
   await page.uncheck("#lkFiche");
   expect(await message(page)).not.toContain("Fiche complète");
+});
+
+test("case « Lien de la fiche » décochée : rien n’est envoyé en ligne", async ({ browser }) => {
+  const ctx = await browser.newContext();
+  await setupRoutes(ctx);
+  await ctx.addInitScript(() => { try { localStorage.setItem("easyroute.ficheLink", "0"); } catch (_) {} });
+  const sent = [];
+  ctx.on("request", (req) => { if (/api\.easyroute\.cloud\/f/.test(req.url()) && req.method() !== "GET") sent.push(req.method()); });
+  const page = await ctx.newPage();
+  await page.goto("/");
+  await page.fill("#contactName", "Julien");
+  await page.click("#tabMsg");
+  await expect(page.locator("#ficheState")).toHaveText(/Rien n’est envoyé en ligne/);
+  await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#fiche=/);
+  await page.waitForTimeout(2000); // au-delà du délai d'envoi du lien court
+  expect(sent).toEqual([]);
+  expect(await message(page)).not.toContain("api.easyroute.cloud/ics/");
+  // Recocher la case crée le lien court
+  await page.check("#lkFiche");
+  await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=T[0-9a-f]{9}$/);
+  expect(sent).toEqual(["POST"]);
+  await ctx.close();
+});
+
+test("lien court existant : il reste à jour, « Nouveau lien » arrête l’envoi", async ({ page }) => {
+  const url = await ficheLink(page);
+  await page.uncheck("#lkFiche");
+  await page.fill("#contactName", "Marie");
+  await page.waitForTimeout(2000); // mise à jour du lien existant
+  await expect(page.locator("#ficheState")).toHaveText(/existait déjà/);
+  await expect(page.locator("#ficheOpen")).toHaveAttribute("href", url);
+  const sent = [];
+  page.on("request", (req) => { if (/api\.easyroute\.cloud\/f/.test(req.url()) && req.method() !== "GET") sent.push(req.method()); });
+  await page.click("#ficheNew"); await page.click("#ficheNew");
+  await expect(page.locator("#ficheState")).toHaveText(/Rien n’est envoyé en ligne/);
+  await page.fill("#contactName", "Paul");
+  await page.waitForTimeout(2000);
+  expect(sent).toEqual([]);
 });
 
 test("lien court inconnu ou expiré : message clair", async ({ page }) => {

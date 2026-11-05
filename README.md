@@ -112,7 +112,7 @@ Le dossier `worker/` contient le code du service qui range les fiches partagées
 
 Le travail se fait dans le navigateur. Les adresses recherchées partent vers Nominatim ou Photon, et les tuiles de carte sont demandées à Esri.
 
-Seul le **lien de fiche court** envoie des données au service d’Easy Route (`api.easyroute.cloud`, voir *Liens courts*) : la fiche (événement, lieu, points utiles, infos pratiques, dont le téléphone du contact et le code d’accès) et son événement d’agenda, sans le logo. Elle est envoyée et tenue à jour automatiquement dès qu’une adresse ou une position est saisie, même si le lien n’est pas mis dans le message. Toute personne qui a le lien peut la lire. Les sessions, les lieux enregistrés, les logos et les polices restent, eux, sur l’appareil.
+Seul le **lien de fiche court** envoie des données au service d’Easy Route (`api.easyroute.cloud`, voir *Liens courts*) : la fiche (événement, lieu, points utiles, infos pratiques, dont le téléphone du contact et le code d’accès) et son événement d’agenda, sans le logo ; toute personne qui a le lien peut la lire. Elle est envoyée et tenue à jour automatiquement dès qu’une adresse ou une position est saisie. Pour ne rien envoyer, décochez *Lien de la fiche complète dans le message* : Easy Route utilise alors le lien long, qui contient toute la fiche sans passer par le serveur, et le lien d’agenda long (sans lien `.ics`). Un lien court déjà créé reste à jour, car l’équipe l’a peut-être déjà reçu ; *Nouveau lien* arrête son envoi. Les sessions, les lieux enregistrés, les logos et les polices restent, eux, sur l’appareil.
 
 ## Limites connues
 

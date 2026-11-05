@@ -1594,6 +1594,11 @@
   }
   const shortUrl = (id) => siteBase() + "#s=" + id;
   const SYNCED = "Fiche en ligne à jour. Si vous avez déjà envoyé ce lien, l’équipe voit cette version.";
+  const SYNCED_KEPT = "Ce lien court existait déjà (il a pu être envoyé) : il reste à jour. « Nouveau lien » pour ne plus rien envoyer en ligne.";
+  const LOCAL_ONLY = "Rien n’est envoyé en ligne : le lien long ci-dessus contient toute la fiche.";
+  // Unticking « Lien de la fiche » stops new fiches from being stored by the Worker
+  // (an existing short link keeps being updated: the team may already have it)
+  const ficheOnline = () => $("lkFiche").checked;
   // Create the job's link, or update it in place (same link) once it exists
   async function shorten(packed, note) {
     const offline = () => {
@@ -1609,12 +1614,17 @@
           const res = await r.json().catch(() => ({}));
           if (!!res.ics !== !!st.share.ics) { st.share.ics = !!res.ics; autosave(); updateMessage(); }
           shortFailed = false; syncedPacked = packed;
-          if (packed === currentPacked) setFicheUrl(shortUrl(st.share.id), SYNCED);
+          if (packed === currentPacked) setFicheUrl(shortUrl(st.share.id), ficheOnline() ? SYNCED : SYNCED_KEPT);
           return;
         }
         if (r.status !== 403 && r.status !== 404) return offline();
         st.share = null; // link no longer ours (expired, or older Worker): make a new one
         note = "Nouveau lien créé : l’ancien ne pouvait plus être mis à jour.";
+      }
+      if (!ficheOnline()) {
+        syncFicheButtons(); autosave();
+        if (packed === currentPacked) setFicheUrl(siteBase() + "#fiche=" + packed, LOCAL_ONLY);
+        return;
       }
       const r = await fetch(SHORT_API + "/f", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ d: packed, ics: icsForUpload() }) });
       if (!r.ok) throw new Error(r.status);
@@ -1630,7 +1640,8 @@
   function syncFicheButtons() { $("ficheNew").hidden = !st.share; }
   confirmClick($("ficheNew"), "Créer un nouveau lien ?", () => {
     st.share = null; syncedPacked = ""; syncFicheButtons(); autosave();
-    say("Un nouveau lien va être créé. L’ancien garde la version déjà envoyée.", "ok");
+    say(ficheOnline() ? "Un nouveau lien va être créé. L’ancien garde la version déjà envoyée."
+      : "L’ancien lien garde la version déjà envoyée. La fiche n’est plus envoyée en ligne.", "ok");
     refreshFiche();
   });
   function refreshFiche() {
@@ -1643,9 +1654,10 @@
       syncFicheButtons();
       if (!canShorten()) { setFicheUrl(siteBase() + "#fiche=" + packed, ""); return; }
       if (st.share) {
-        if (packed === syncedPacked) { setFicheUrl(shortUrl(st.share.id), SYNCED); return; }
+        if (packed === syncedPacked) { setFicheUrl(shortUrl(st.share.id), ficheOnline() ? SYNCED : SYNCED_KEPT); return; }
         if (!shortFailed) setFicheUrl(shortUrl(st.share.id), "Mise à jour de la fiche en ligne…");
       } else {
+        if (!ficheOnline()) { clearTimeout(shortTimer); setFicheUrl(siteBase() + "#fiche=" + packed, LOCAL_ONLY); return; }
         const id = shortIds.get(packed);
         if (id) { setFicheUrl(shortUrl(id), "Lien court prêt."); return; }
         setFicheUrl(siteBase() + "#fiche=" + packed, "Création du lien court…");
@@ -1653,7 +1665,7 @@
       clearTimeout(shortTimer); shortTimer = setTimeout(() => shorten(packed), shortFailed ? 4000 : 1200);
     }, 300);
   }
-  $("lkFiche").addEventListener("change", (e) => { try { localStorage.setItem("easyroute.ficheLink", e.target.checked ? "1" : "0"); } catch (_) {} updateMessage(); });
+  $("lkFiche").addEventListener("change", (e) => { try { localStorage.setItem("easyroute.ficheLink", e.target.checked ? "1" : "0"); } catch (_) {} updateMessage(); refreshFiche(); });
   try { $("lkFiche").checked = localStorage.getItem("easyroute.ficheLink") !== "0"; } catch (_) {}
   $("ficheCopy").addEventListener("click", () => {
     if (!ficheUrl) return;
