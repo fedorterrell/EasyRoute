@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600&family=JetBrains+Mono:wght@400&display=swap">
 <!-- ?v= : à changer à chaque mise à jour des fichiers, pour que les téléphones rechargent la nouvelle version -->
-<link rel="stylesheet" href="css/easyroute.css?v=2026.11.05b">
+<link rel="stylesheet" href="css/easyroute.css?v=2026.11.05c">
 </head>
 <body>
 <div class="wrap">
@@ -261,12 +261,11 @@
           <canvas id="sheet" tabindex="0" aria-label="Aperçu du plan A4. Faites glisser pour déplacer la carte ou dessiner des flèches."></canvas>
           <div class="dropnote" id="dropNote" hidden>Déposez la capture pour l’utiliser</div>
         </div>
-        <div class="meta"><span>A4 paysage <b>297 × 210 mm</b></span><span>Export <b>3508 × 2480 px</b> à 300 dpi</span><span id="sheetNote"></span></div>
+        <div class="meta"><span>A4 paysage <b>297 × 210 mm</b></span><span>Export <b>3508 × 2480 px</b> à 300 dpi</span></div>
         <div class="actions">
           <button type="button" class="btn primary" id="sheetJpg">Télécharger en JPG</button>
           <button type="button" class="btn" id="sheetPng">Télécharger en PNG</button>
           <button type="button" class="btn share" id="sheetShare" hidden>Partager le plan</button>
-          <button type="button" class="btn" id="offline" hidden>Version hors ligne (.html)</button>
         </div>
       </div>
 
@@ -322,7 +321,7 @@
           <button type="button" class="btn primary share" id="msgShare" hidden>Partager</button>
           <button type="button" class="btn primary" id="msgCopy">Copier le message</button>
           <a class="btn" id="msgWa" href="#" target="_blank" rel="noopener">Ouvrir dans WhatsApp</a>
-          <a class="btn" id="msgMail" href="#" hidden>Envoyer par e-mail</a>
+          <a class="btn" id="msgMail" href="#">Envoyer par e-mail</a>
         </div>
         <p class="hint" id="msgHint"></p>
       </div>
@@ -379,7 +378,8 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
-<script src="js/easyroute.js?v=2026.11.05b"></script>
+<!-- qrcode-generator 1.4.4 (Kazuhiko Arase, MIT), servi depuis le dépôt -->
+<script src="js/qrcode.js?v=1.4.4"></script>
+<script src="js/easyroute.js?v=2026.11.05c"></script>
 </body>
 </html>

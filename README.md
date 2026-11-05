@@ -65,6 +65,7 @@ Le bouton *Partager* envoie le plan A4 et le message ensemble vers WhatsApp, Mai
 | `index.html` | La page : structure et contenu (formulaire, onglets, fiche équipe). |
 | `css/easyroute.css` | L’apparence : couleurs, mise en page, version téléphone. |
 | `js/easyroute.js` | Tout le fonctionnement : carte, plan A4, étiquette, message, agenda, fiche partagée, sessions et lieux. |
+| `js/qrcode.js` | Bibliothèque qrcode-generator 1.4.4, copiée telle quelle depuis npm (servie par le site, sans CDN). |
 | `manifest.webmanifest`, `icons/` | Installation sur l’écran d’accueil (nom, icône, plein écran). |
 | `tests/`, `package.json`, `playwright.config.js`, `.github/workflows/` | Tests automatiques (voir ci-dessous). |
 
@@ -107,7 +108,7 @@ Le dossier `worker/` contient le code du service qui range les fiches partagées
 
 - **Imagerie satellite** : [Esri World Imagery](https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer) et couches de référence Esri. La mention « Imagerie © Esri, Maxar, Earthstar Geographics » est imprimée sur chaque plan et doit y rester.
 - **Recherche d’adresse et propositions de lieux** : [OpenStreetMap Nominatim](https://nominatim.org/) et [Photon](https://photon.komoot.io/). Données © contributeurs OpenStreetMap. L’outil ne lance une recherche qu’après une pause dans la saisie, pour respecter la [politique d’usage de Nominatim](https://operations.osmfoundation.org/policies/nominatim/) (une requête par seconde au maximum).
-- **QR codes** : [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) de Kazuhiko Arase, licence MIT.
+- **QR codes** : [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) de Kazuhiko Arase, licence MIT (copie de la version 1.4.4 dans `js/qrcode.js`, avec sa mention de licence).
 - **Polices de l’interface** : Barlow et JetBrains Mono, via Google Fonts, licence SIL Open Font License.
 
 Le travail se fait dans le navigateur. Les adresses recherchées partent vers Nominatim ou Photon, et les tuiles de carte sont demandées à Esri.
@@ -124,4 +125,4 @@ Seul le **lien de fiche court** envoie des données au service d’Easy Route (`
 
 Le code d’Easy Route est distribué sous licence [MIT](LICENSE) : vous pouvez l’utiliser, le modifier et le redistribuer librement, à condition de conserver la mention de copyright et le texte de la licence.
 
-Cette licence ne couvre que le code de ce dépôt. L’imagerie Esri, les données OpenStreetMap, les polices et la bibliothèque qrcode-generator restent soumises à leurs propres conditions (voir *Services externes et crédits*).
+Cette licence ne couvre que le code d’Easy Route. La bibliothèque qrcode-generator (`js/qrcode.js`), l’imagerie Esri, les données OpenStreetMap et les polices restent soumises à leurs propres conditions (voir *Services externes et crédits*).

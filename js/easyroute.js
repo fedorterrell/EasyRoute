@@ -3,7 +3,6 @@
 (function () {
   const $ = (id) => document.getElementById(id);
   const els = { name: $("name"), addr: $("addr"), useName: $("useName"), custom: $("custom"), coords: $("coords"), qrmm: $("qrmm"), dpi: $("dpi"), showUrl: $("showUrl"), url: $("url"), open: $("open"), out: $("out"), meta: $("meta"), status: $("status"), sheet: $("sheet") };
-  const standalone = !(window.claude && typeof window.claude.use === "function");
 
   const SANS = '"CustomLabelFont", "Barlow", system-ui, sans-serif';
   const MONO = '"JetBrains Mono", ui-monospace, monospace';
@@ -423,7 +422,6 @@
         if (wait) await Promise.all(layers.flat().map((i) => i.t.p));
         ctx.fillStyle = "#4a5547"; ctx.fillRect(0, 0, W, H);
         layers.forEach((list) => list.forEach((i) => { if (i.t.ok) ctx.drawImage(i.t.img, i.x, i.y, i.w, i.h); else if (i.t.err) failed++; }));
-        if (failed && !standalone && layers[0].every((i) => !i.t.ok)) message(ctx, W, H, "L’imagerie satellite ne peut pas se charger dans Claude. Utilisez « Version hors ligne » et ouvrez le fichier dans Safari, ou passez à Ma capture.");
         st.arrows.sat.forEach((a) => drawArrow(ctx, a.map((p) => toOut(v, p)), s));
         if (st.live && st.bg === "sat") drawArrow(ctx, st.live.map((p) => toOut(v, p)), s);
         placedPois().forEach((t) => {
@@ -739,10 +737,8 @@
       const nm = decodeURIComponent(m[1].replace(/\+/g, " ")).trim();
       if (nm && !/^-?\d/.test(nm)) { els.name.value = nm; filled = true; }
     }
-    if (standalone) {
-      const addr = await reverseAddress(p);
-      if (addr) { els.addr.value = addr; filled = true; }
-    }
+    const addr = await reverseAddress(p);
+    if (addr) { els.addr.value = addr; filled = true; }
     if (filled) {
       $("exampleTag").hidden = true; exampleShown = false;
       clearTimeout(lookupTimer);
@@ -770,7 +766,6 @@
   async function lookup(auto) {
     const addr = els.addr.value.trim().replace(/\s*\n\s*/g, ", "), name = els.name.value.trim();
     if (!addr && !name) { if (!auto) say("Saisissez d’abord une adresse.", "warn"); return; }
-    if (!standalone) { if (!auto) say("La recherche d’adresse ne fonctionne que dans la version hors ligne. Saisissez les coordonnées, ou utilisez Version hors ligne.", "warn"); return; }
     lastLookup = els.addr.value.trim() + "|" + name;
     const seq = ++lookupSeq;
     say("Recherche de l’adresse…");
@@ -888,7 +883,7 @@
   els.name.addEventListener("input", () => {
     clearTimeout(suggestTimer);
     const q = els.name.value.trim();
-    if (q.length < 3 || !standalone) { closeSuggest(); return; }
+    if (q.length < 3) { closeSuggest(); return; }
     suggestTimer = setTimeout(() => fetchSuggestions(q), 350);
   });
   els.name.addEventListener("keydown", (e) => {
@@ -1089,7 +1084,6 @@
     const event = $("eventName").value.trim(), place = els.name.value.trim() || els.addr.value.trim().split(/\n/)[0];
     const subject = (event ? event + " — " + (place || "lieu") : "Adresse : " + (place || "lieu de rendez-vous")) + (call ? " — " + call : "");
     $("msgMail").href = "mailto:?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(text);
-    $("msgMail").hidden = !standalone;
     $("msgHint").textContent = st.place
       ? "Les liens pointent sur le repère du plan : tout le monde arrive au même endroit." + (placedPois().length ? " Chaque point utile a ses propres liens." : "")
       : "Aucune position sur la carte : les liens recherchent l’adresse. Placez le lieu pour un point exact.";
@@ -1192,7 +1186,7 @@
     const blob = new Blob([icsText(ev)], { type: "text/calendar" });
     const file = new File([blob], name, { type: "text/calendar" });
     // Share sheet on phones only: on a Mac it would open the share window instead of Calendar
-    if (standalone && matchMedia("(pointer: coarse)").matches && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    if (matchMedia("(pointer: coarse)").matches && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share({ files: [file], title: ev.title }); say("Événement partagé.", "ok"); return; }
       catch (e) { if (e && e.name === "AbortError") { say("Partage annulé."); return; } }
     }
@@ -1204,28 +1198,13 @@
   });
 
   // ---------- Saving ----------
-  let downloads = null;
-  if (!standalone) {
-    window.claude.use("downloads").then((d) => { downloads = d; }).catch(() => {});
-    $("offline").hidden = false;
-  }
   function browserDownload(blob, filename) {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = filename;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   }
-  async function deliver(blob, filename) {
-    if (standalone) { browserDownload(blob, filename); say("Téléchargé : " + filename, "ok"); return; }
-    if (!downloads) { say("Téléchargement indisponible ici. Faites un clic droit sur l’aperçu pour enregistrer l’image.", "warn"); return; }
-    try { await downloads.save({ filename, data: blob }); say("Enregistré : " + filename, "ok"); }
-    catch (e) {
-      const code = e && e.code;
-      if (code === "declined") say("Téléchargement annulé.");
-      else if (code === "rate_limited") say("Une demande de téléchargement est déjà ouverte. Terminez-la, puis réessayez.", "warn");
-      else say("Impossible d’enregistrer le fichier ici. Faites un clic droit sur l’aperçu pour enregistrer l’image.", "warn");
-    }
-  }
+  function deliver(blob, filename) { browserDownload(blob, filename); say("Téléchargé : " + filename, "ok"); }
   const toBlob = (c, type) => new Promise((res, rej) => { try { c.toBlob((b) => b ? res(b) : rej(new Error("empty")), type, 0.92); } catch (err) { rej(err); } });
 
   async function saveLabel(kind) {
@@ -1248,7 +1227,7 @@
       await deliver(blob, "plan-" + current.base + "." + kind);
       if (failed) say(`Enregistré, mais ${failed} tuile${failed > 1 ? "s" : ""} de carte n’${failed > 1 ? "ont" : "a"} pas chargé. Vérifiez l’image, et dézoomez d’un cran si des zones sont vides.`, "warn");
     } catch (_) {
-      say("Le navigateur a bloqué l’export de l’image satellite. Ouvrez la version hors ligne dans Safari ou Chrome, ou utilisez Ma capture.", "warn");
+      say("Le navigateur a bloqué l’export de l’image satellite. Réessayez dans un moment, ou utilisez Ma capture.", "warn");
     }
   }
   $("sheetJpg").addEventListener("click", () => saveSheet("jpg"));
@@ -1259,7 +1238,7 @@
     catch (_) { return false; }
   })();
   const canShareText = !!navigator.share;
-  if (standalone && canShareText) {
+  if (canShareText) {
     document.querySelectorAll(".share").forEach((el) => {
       if ((el.id === "sheetShare" || el.htmlFor === "msgWithSheet") && !canShareFiles) return;
       el.hidden = false;
@@ -1302,13 +1281,6 @@
   $("sheetShare").addEventListener("click", (e) => shareNow(true, e.currentTarget));
   $("msgShare").addEventListener("click", (e) => shareNow(canShareFiles && $("msgWithSheet").checked, e.currentTarget));
   $("sheetPng").addEventListener("click", () => saveSheet("png"));
-  $("offline").addEventListener("click", async () => {
-    try {
-      const r = await fetch("easy-route.html");
-      if (!r.ok) throw new Error();
-      deliver(await r.blob(), "easy-route.html");
-    } catch (_) { say("Impossible de récupérer la version hors ligne.", "warn"); }
-  });
 
   // ---------- Misc inputs ----------
   $("copy").addEventListener("click", () => {
@@ -1578,7 +1550,7 @@
     }
     return JSON.parse(new TextDecoder().decode(bytes));
   }
-  const siteBase = () => (/^https?:$/.test(location.protocol) && !/claude/.test(location.hostname) ? location.origin + location.pathname : SITE_URL);
+  const siteBase = () => (/^https?:$/.test(location.protocol) ? location.origin + location.pathname : SITE_URL);
   // Short links: the fiche is stored by our Cloudflare Worker, the link only carries its id (…/#s=k7Qp2xA9bC).
   // If the Worker can't be reached, the long self-contained link (…/#fiche=…) is used instead.
   const SHORT_API = "https://api.easyroute.cloud";
@@ -1952,7 +1924,6 @@
     } catch (_) {}
   }
   fontDbDo("readonly", (s) => s.get("venues")).then((list) => { venues = Array.isArray(list) ? list : []; fillVenueSelect(""); }).catch(() => {});
-  $("sheetNote").textContent = standalone ? "" : "Le satellite et la recherche d’adresse demandent la version hors ligne";
   syncTool(); syncPois();
   render(); fontState();
   if (!ficheHash) fontDbDo("readonly", (s) => s.get("logo")).then((saved) => { if (saved && saved.blob) useLogo(saved.blob, true); }).catch(() => {});

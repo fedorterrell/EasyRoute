@@ -2,16 +2,12 @@
 const path = require("path");
 const { test: base, expect } = require("@playwright/test");
 
-const QR_LIB = require.resolve("qrcode-generator/qrcode.js");
-
 // Faux service des liens courts (remplace le Worker Cloudflare pendant les tests)
 const shortStore = new Map();
 const WORKER = /^https:\/\/api\.easyroute\.cloud\//;
 async function setupRoutes(context, { workerDown = false, legacyWorker = false } = {}) {
   // Pas d'appel aux services extérieurs pendant les tests : tuiles, géocodage, polices Google.
   await context.route(/arcgisonline|nominatim|photon|fonts\.(googleapis|gstatic)/, (r) => r.abort());
-  // Bibliothèque QR servie en local (pas de dépendance au CDN)
-  await context.route(/qrcode\.min\.js/, (r) => r.fulfill({ path: QR_LIB, contentType: "text/javascript" }));
   await context.route(WORKER, async (r) => {
     if (workerDown) return r.abort();
     const req = r.request(), url = new URL(req.url()), cors = { "Access-Control-Allow-Origin": "*" };

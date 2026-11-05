@@ -6,7 +6,6 @@
     "test": "playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "1.56.0",
-    "qrcode-generator": "1.4.4"
+    "@playwright/test": "1.56.0"
   }
 }
