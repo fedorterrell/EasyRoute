@@ -59,3 +59,34 @@ test("un lieu absent de Photon (ajouté récemment à OSM) est proposé via Nomi
   await expect(page.locator("#addr")).toHaveValue("175 Rue du Lac, 74130 Bonneville");
   await expect(page.locator("#coords")).toHaveValue("46.0681082, 6.4166651");
 });
+
+test("Photon propose des lieux approchants (Sixt…) : Nominatim est quand même consulté et le bon lieu passe en tête", async ({ page }) => {
+  const approx = (name, city) => ({ type: "Feature", geometry: { type: "Point", coordinates: [6.2, 46.0] }, properties: { name, city, country: "France", countrycode: "FR" } });
+  await page.context().route(/photon\.komoot\.io/, (r) => r.fulfill({ contentType: "application/json",
+    body: JSON.stringify({ features: [approx("Sixt", "Annecy"), approx("Saint-Sixt", "Saint-Sixt"), approx("Le Sixties", "Morzine"), approx("Sixt-Fer-à-Cheval", "Sixt")] }) }));
+  let nominatimCalls = 0;
+  await page.context().route(/nominatim\.openstreetmap\.org\/search/, (r) => { nominatimCalls++; r.fulfill({ contentType: "application/json",
+    body: JSON.stringify([{ name: "Sixthemes", lat: "46.0681082", lon: "6.4166651",
+      address: { house_number: "175", road: "Rue du Lac", postcode: "74130", town: "Bonneville", country: "France", country_code: "fr" } }]) }); });
+  await page.fill("#name", "");
+  await page.locator("#name").pressSequentially("Sixthemes");
+  const first = page.locator("#nameSuggest li[role=option]").first();
+  await expect(first).toContainText("Sixthemes");
+  await expect(page.locator("#nameSuggest li[role=option]")).toHaveCount(5);
+  await first.click();
+  await expect(page.locator("#addr")).toHaveValue("175 Rue du Lac, 74130 Bonneville");
+  expect(nominatimCalls).toBeGreaterThan(0);
+});
+
+test("Photon trouve le lieu tapé : pas d'appel à Nominatim", async ({ page }) => {
+  const f = (name) => ({ type: "Feature", geometry: { type: "Point", coordinates: [5.9, 45.6] }, properties: { name, city: "Chambéry", country: "France", countrycode: "FR" } });
+  await page.context().route(/photon\.komoot\.io/, (r) => r.fulfill({ contentType: "application/json",
+    body: JSON.stringify({ features: [f("Le Phare"), f("Le Phare Chambéry"), f("Phare de la Baie")] }) }));
+  let nominatimCalls = 0;
+  await page.context().route(/nominatim\.openstreetmap\.org\/search/, (r) => { nominatimCalls++; r.fulfill({ contentType: "application/json", body: "[]" }); });
+  await page.fill("#name", "");
+  await page.locator("#name").pressSequentially("Le Phare");
+  await expect(page.locator("#nameSuggest li[role=option]")).toHaveCount(3);
+  await page.waitForTimeout(500);
+  expect(nominatimCalls).toBe(0);
+});

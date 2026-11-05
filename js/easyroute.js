@@ -797,7 +797,7 @@
     const line2 = [a.postcode, a.city].filter(Boolean).join(" ");
     return [line1, line2, cc && cc !== "fr" ? a.country : ""].filter(Boolean).join(", ");
   }
-  let suggestAbort = null, suggestTimer = 0, suggestions = [], suggestIndex = -1;
+  let suggestAbort = null, suggestTimer = 0, suggestions = [], suggestIndex = -1, lastNominatim = 0;
   const sugBox = $("nameSuggest");
   function closeSuggest() { sugBox.hidden = true; els.name.setAttribute("aria-expanded", "false"); suggestIndex = -1; }
   function showSuggest() {
@@ -837,9 +837,20 @@
         };
       });
     } catch (e) { if (e && e.name === "AbortError") return; }
-    // 2. Nominatim fallback: up to date within minutes, so recently added places show up
-    if (list.length < 3) {
+    // 2. Nominatim fallback: up to date within minutes, so recently added places show up.
+    // Photon is typo-tolerant and almost always returns something ("Sixthemes" gives Sixt, Saint-Sixt…),
+    // so the fallback runs whenever no Photon name contains what was typed, not only when the list is short.
+    const norm = (t) => (t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+    const nq = norm(q);
+    const matches = (name) => norm(name).includes(nq);
+    if (list.length < 3 || !list.some((s) => matches(s.name))) {
       try {
+        // Nominatim allows one request per second: wait if the previous one was too recent
+        const wait = lastNominatim + 1100 - Date.now();
+        if (wait > 0) await new Promise((res) => setTimeout(res, wait));
+        if (signal.aborted) return;
+        lastNominatim = Date.now();
+        const found = [];
         const r = await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=5&countrycodes=fr,ch,it&q=" + encodeURIComponent(q), { signal, headers: { "Accept-Language": "fr" } });
         const j = await r.json();
         for (const h of j || []) {
@@ -847,12 +858,14 @@
           const lat = +h.lat, lng = +h.lon;
           if (list.some((s) => s.name === h.name && Math.abs(s.lat - lat) < 0.001 && Math.abs(s.lng - lng) < 0.001)) continue;
           const a = h.address || {};
-          list.push({
+          found.push({
             name: h.name,
             address: formatAddress({ house: a.house_number, street: a.road, postcode: a.postcode, city: a.city || a.town || a.village || a.municipality, country: a.country, cc: a.country_code }),
             lat, lng,
           });
         }
+        // Places whose name matches what was typed come first, before Photon's approximate guesses
+        list = found.filter((x) => matches(x.name)).concat(list.filter((x) => matches(x.name)), found.filter((x) => !matches(x.name)), list.filter((x) => !matches(x.name)));
       } catch (e) { if (e && e.name === "AbortError") return; }
     }
     if (signal.aborted) return;
