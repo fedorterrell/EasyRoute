@@ -7,6 +7,19 @@ on:
     branches: [main]
 
 jobs:
+  # Un fichier CSS ou JS modifié doit changer de numéro ?v= dans index.html
+  version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Numéros ?v= à jour
+        run: .github/check-version.sh "$BASE"
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15

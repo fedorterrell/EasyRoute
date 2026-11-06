@@ -67,11 +67,11 @@ Le bouton *Partager* envoie le plan A4 et le message ensemble vers WhatsApp, Mai
 | `js/easyroute.js` | Tout le fonctionnement : carte, plan A4, étiquette, message, agenda, fiche partagée, sessions et lieux. |
 | `js/qrcode.js` | Bibliothèque qrcode-generator 1.4.4, copiée telle quelle depuis npm (servie par le site, sans CDN). |
 | `manifest.webmanifest`, `icons/` | Installation sur l’écran d’accueil (nom, icône, plein écran). |
-| `tests/`, `package.json`, `playwright.config.js`, `.github/workflows/` | Tests automatiques (voir ci-dessous). |
+| `tests/`, `package.json`, `playwright.config.js`, `.github/` | Tests automatiques (voir ci-dessous). |
 
 Le site est servi par GitHub Pages depuis la branche `main`, sous le domaine `easyroute.cloud` (fichier `CNAME` ; DNS chez Cloudflare, lignes GitHub en *DNS only*). Les anciennes adresses `fedorterrell.github.io/easyroute/…` redirigent vers le domaine. Chaque fusion sur `main` met le site à jour en une à deux minutes. Aucune étape de compilation : les fichiers sont servis tels quels.
 
-Quand `css/easyroute.css` ou `js/easyroute.js` change, changez aussi le numéro `?v=…` qui suit leur nom dans `index.html` (par exemple la date du jour). Sinon, un téléphone peut garder l’ancienne version en mémoire quelques minutes.
+Quand `css/easyroute.css` ou `js/easyroute.js` change, changez aussi le numéro `?v=…` qui suit leur nom dans `index.html` (par exemple la date du jour). Sinon, un téléphone peut garder l’ancienne version en mémoire quelques minutes. GitHub Actions le vérifie à chaque pull request et à chaque mise à jour de `main` : un fichier modifié sans nouveau numéro fait échouer le contrôle *Numéros ?v= à jour*. Pour vérifier avant d’envoyer : `.github/check-version.sh origin/main`.
 
 ## Tests automatiques
 
