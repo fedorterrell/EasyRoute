@@ -1049,7 +1049,9 @@
     const lines = [], event = $("eventName").value.trim();
     if (event) lines.push("\u{1F3AB} " + event, "");
     // The fiche link also goes into the .ics description
-    const ficheLine = $("lkFiche").checked && ficheUrl ? ["", "\u{1F517} Fiche complète (plan, accès, itinéraires) :", ficheUrl] : [];
+    // Short link not created yet: it is created when sharing, and replaces this placeholder before the message leaves
+    const ficheLink = ficheUrl || (!forCalendar && ficheOnline() && canShorten() && hasPlace() ? "(lien créé à l’envoi)" : "");
+    const ficheLine = $("lkFiche").checked && ficheLink ? ["", "\u{1F517} Fiche complète (plan, accès, itinéraires) :", ficheLink] : [];
     if (name) lines.push("\u{1F4CD} " + name);
     if (addr) lines.push(name ? addr : "\u{1F4CD} " + addr);
     lines.push(...ficheLine);
@@ -1370,11 +1372,11 @@
       place: st.place, center: st.center, zoom: st.zoom, pois: st.pois, arrows: st.arrows.sat,
       poiLabels: Object.fromEntries(POI_TYPES.map((t) => [t.key, $("poiLabel-" + t.key).value])),
       poiColors: { ...st.poiColors },
-      share: st.share || null, // owned short link { id, key } of this job
+      share: st.share || null, // owned short link { id, key, ics, sig } of this job
     };
   }
   function applyState(d) {
-    st.share = d.share && d.share.id && d.share.key ? { id: d.share.id, key: d.share.key, ics: !!d.share.ics } : null;
+    st.share = d.share && d.share.id && d.share.key ? { id: d.share.id, key: d.share.key, ics: !!d.share.ics, sig: typeof d.share.sig === "string" ? d.share.sig : "" } : null;
     const f = d.fields || {};
     JOB_FIELDS.forEach((id) => { if (!(id in f)) return; const el = $(id); if (el.type === "checkbox") el.checked = !!f[id]; else el.value = f[id]; });
     st.roads = $("roads").checked; st.pin = $("pin").checked;
@@ -1552,70 +1554,100 @@
   }
   const siteBase = () => (/^https?:$/.test(location.protocol) ? location.origin + location.pathname : SITE_URL);
   // Short links: the fiche is stored by our Cloudflare Worker, the link only carries its id (…/#s=k7Qp2xA9bC).
-  // If the Worker can't be reached, the long self-contained link (…/#fiche=…) is used instead.
+  // The fiche goes online only when it is shared (Copier, WhatsApp, e-mail, Partager, Copier le lien),
+  // never while typing: no drafts on the server. If the Worker can't be reached, the long
+  // self-contained link (…/#fiche=…) is used instead.
   const SHORT_API = "https://api.easyroute.cloud";
-  const shortIds = new Map(); // packed fiche -> id (links that can't be updated: older Worker without keys)
-  let currentPacked = "", syncedPacked = "", shortTimer = 0, shortFailed = false;
-  st.share = null; // { id, key }: the link of this job, kept with the session, updated in place
-  const canShorten = () => ["easyroute.cloud", "www.easyroute.cloud", "fedorterrell.github.io", "localhost"].includes(location.hostname);
-  function setFicheUrl(url, state) {
-    $("ficheOpen").href = url || "#";
-    $("ficheCopy").disabled = !url;
+  const shortIds = new Map(); // fiche signature -> id (older Worker without keys: one link per version)
+  let failedSig = "", publishing = null;
+  st.share = null; // { id, key, ics, sig }: the link of this job, kept with the session; sig = version online
+  // (function declarations: messageText, defined earlier, uses them)
+  function canShorten() { return ["easyroute.cloud", "www.easyroute.cloud", "fedorterrell.github.io", "localhost"].includes(location.hostname); }
+  function hasPlace() { return !!(st.place || els.addr.value.trim()); }
+  const ficheSig = () => JSON.stringify(ficheData());
+  // url: link put in the message ("" = short link still to be created); open: page shown by « Voir la fiche »
+  function setFicheUrl(url, state, open) {
+    $("ficheOpen").href = open || url || "#";
+    $("ficheCopy").disabled = !url && !open;
     $("ficheState").textContent = state || "";
     if (url !== ficheUrl) { ficheUrl = url; updateMessage(); }
   }
   const shortUrl = (id) => siteBase() + "#s=" + id;
+  const longUrl = (packed) => siteBase() + "#fiche=" + packed;
   const SYNCED = "Fiche en ligne à jour. Si vous avez déjà envoyé ce lien, l’équipe voit cette version.";
-  const SYNCED_KEPT = "Ce lien court existait déjà (il a pu être envoyé) : il reste à jour. « Nouveau lien » pour ne plus rien envoyer en ligne.";
+  const SYNCED_KEPT = "Ce lien court existait déjà (il a pu être envoyé) : il est à jour. « Nouveau lien » pour ne plus rien envoyer en ligne.";
+  const UNSYNCED = "Modifications pas encore en ligne : elles partiront au prochain envoi, ou avec « Mettre à jour la fiche en ligne ».";
+  const PENDING = "Rien n’est encore en ligne : le lien court sera créé au moment de l’envoi.";
   const LOCAL_ONLY = "Rien n’est envoyé en ligne : le lien long ci-dessus contient toute la fiche.";
+  const OFFLINE = "Service des liens courts injoignable : le message garde le lien long, qui fonctionne aussi.";
   // Unticking « Lien de la fiche » stops new fiches from being stored by the Worker
-  // (an existing short link keeps being updated: the team may already have it)
-  const ficheOnline = () => $("lkFiche").checked;
-  // Create the job's link, or update it in place (same link) once it exists
-  async function shorten(packed, note) {
-    const offline = () => {
-      shortFailed = true;
-      if (packed !== currentPacked) return;
-      if (st.share) setFicheUrl(siteBase() + "#fiche=" + packed, "Pas de réseau : la fiche en ligne n’est pas à jour. Le lien ci-dessus (long) contient la version actuelle.");
-      else $("ficheState").textContent = "Service des liens courts injoignable : le lien long fonctionne aussi.";
-    };
+  // (an existing short link is still updated when sharing: the team may already have it)
+  function ficheOnline() { return $("lkFiche").checked; }
+  // Whether sharing now must first put the fiche online (create the link, or update it)
+  function needsPublish() {
+    if (ficheMode || !canShorten() || !hasPlace()) return false;
+    const sig = ficheSig();
+    if (st.share) return sig !== st.share.sig && sig !== failedSig;
+    return ficheOnline() && !shortIds.has(sig) && sig !== failedSig;
+  }
+  // Create the job's link, or update it in place (same link). Resolves to true once the fiche online is up to date.
+  function publish() {
+    if (!publishing) publishing = doPublish().finally(() => { publishing = null; });
+    return publishing;
+  }
+  async function doPublish() {
+    const sig = ficheSig(), packed = await packFiche(JSON.parse(sig));
     try {
       if (st.share) {
         const r = await fetch(SHORT_API + "/f/" + st.share.id, { method: "PUT", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ d: packed, key: st.share.key, ics: icsForUpload() }) });
         if (r.ok) {
           const res = await r.json().catch(() => ({}));
-          if (!!res.ics !== !!st.share.ics) { st.share.ics = !!res.ics; autosave(); updateMessage(); }
-          shortFailed = false; syncedPacked = packed;
-          if (packed === currentPacked) setFicheUrl(shortUrl(st.share.id), ficheOnline() ? SYNCED : SYNCED_KEPT);
-          return;
+          st.share.ics = !!res.ics; st.share.sig = sig; failedSig = "";
+          autosave(); refreshFiche(true);
+          return true;
         }
-        if (r.status !== 403 && r.status !== 404) return offline();
+        if (r.status !== 403 && r.status !== 404) throw new Error(r.status);
         st.share = null; // link no longer ours (expired, or older Worker): make a new one
-        note = "Nouveau lien créé : l’ancien ne pouvait plus être mis à jour.";
-      }
-      if (!ficheOnline()) {
-        syncFicheButtons(); autosave();
-        if (packed === currentPacked) setFicheUrl(siteBase() + "#fiche=" + packed, LOCAL_ONLY);
-        return;
+        say("Nouveau lien créé : l’ancien ne pouvait plus être mis à jour.", "warn");
       }
       const r = await fetch(SHORT_API + "/f", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ d: packed, ics: icsForUpload() }) });
       if (!r.ok) throw new Error(r.status);
       const { id, key, ics } = await r.json();
       if (!/^[0-9A-Za-z]{6,16}$/.test(id || "")) throw new Error("id");
-      shortFailed = false;
-      if (key) { st.share = { id, key, ics: !!ics }; syncedPacked = packed; autosave(); }
-      else shortIds.set(packed, id); // older Worker: one link per version
-      if (packed === currentPacked) setFicheUrl(shortUrl(id), note || (key ? "Lien court prêt. Il reste le même si vous modifiez la fiche." : "Lien court prêt."));
-      syncFicheButtons();
-    } catch (_) { offline(); }
+      if (key) st.share = { id, key, ics: !!ics, sig };
+      else shortIds.set(sig, id); // older Worker: one link per version
+      failedSig = "";
+      autosave(); refreshFiche(true);
+      return true;
+    } catch (_) {
+      failedSig = sig;
+      refreshFiche(true);
+      return false;
+    }
   }
-  function syncFicheButtons() { $("ficheNew").hidden = $("ficheDel").hidden = !st.share; }
+  function syncFicheButtons(unsynced) {
+    $("ficheNew").hidden = $("ficheDel").hidden = !st.share;
+    $("ficheSync").hidden = !unsynced;
+  }
+  // Share moments: when the fiche must go online first, this tap sends it and the next one shares
+  // (iOS only copies or opens the share sheet right after a tap, not after waiting for the server)
+  ["msgCopy", "msgWa", "msgMail", "msgShare", "sheetShare", "ficheCopy"].forEach((id) => $(id).addEventListener("click", async (e) => {
+    if (!needsPublish()) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    const label = $(id).textContent.trim();
+    say("Envoi de la fiche en ligne…");
+    const ok = await publish();
+    say((ok ? "Fiche en ligne à jour." : OFFLINE) + " Touchez à nouveau « " + label + " » pour envoyer.", ok ? "ok" : "warn");
+  }, true));
+  $("ficheSync").addEventListener("click", async () => {
+    say("Envoi de la fiche en ligne…");
+    say(await publish() ? "Fiche en ligne à jour : l’équipe voit cette version." : OFFLINE, "ok");
+  });
   // Delete the fiche stored by the Worker (its key proves it is ours): the short link stops working.
   // « Lien de la fiche » is then unticked, so nothing is sent again.
   confirmClick($("ficheDel"), "Supprimer pour de bon ?", async () => {
     const share = st.share, btn = $("ficheDel");
     if (!share) return;
-    clearTimeout(shortTimer);
     btn.disabled = true; say("Suppression de la fiche en ligne…");
     try {
       const r = await fetch(SHORT_API + "/f/" + share.id, { method: "DELETE", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ key: share.key }) });
@@ -1629,40 +1661,42 @@
     }
     btn.disabled = false;
     if (st.share && st.share.id === share.id) st.share = null;
-    syncedPacked = ""; shortFailed = false;
+    failedSig = "";
     $("lkFiche").checked = false;
     try { localStorage.setItem("easyroute.ficheLink", "0"); } catch (_) {}
-    syncFicheButtons(); autosave(); updateMessage(); refreshFiche();
+    autosave(); updateMessage(); refreshFiche(true);
     say("Fiche en ligne supprimée : son lien ne fonctionne plus. « Lien de la fiche » est décoché, rien n’est renvoyé en ligne.", "ok");
   });
   confirmClick($("ficheNew"), "Créer un nouveau lien ?", () => {
-    st.share = null; syncedPacked = ""; syncFicheButtons(); autosave();
-    say(ficheOnline() ? "Un nouveau lien va être créé. L’ancien garde la version déjà envoyée."
+    st.share = null; failedSig = ""; autosave();
+    say(ficheOnline() ? "Un nouveau lien sera créé au prochain envoi. L’ancien garde la version déjà envoyée."
       : "L’ancien lien garde la version déjà envoyée. La fiche n’est plus envoyée en ligne.", "ok");
-    refreshFiche();
+    refreshFiche(true);
   });
-  function refreshFiche() {
+  // Link and state shown under the message (nothing is sent from here)
+  function refreshFiche(now) {
     if (ficheMode) return;
     clearTimeout(ficheTimer);
     ficheTimer = setTimeout(async () => {
-      if (!st.place && !els.addr.value.trim()) { currentPacked = ""; setFicheUrl("", ""); return; }
-      const packed = await packFiche(ficheData());
-      currentPacked = packed;
-      syncFicheButtons();
-      if (!canShorten()) { setFicheUrl(siteBase() + "#fiche=" + packed, ""); return; }
+      if (!hasPlace()) { syncFicheButtons(false); setFicheUrl("", ""); return; }
+      const sig = ficheSig(), long = longUrl(await packFiche(JSON.parse(sig)));
+      if (sig !== ficheSig()) return; // changed meanwhile: a newer refresh is on its way
+      const unsynced = !!(canShorten() && st.share && sig !== st.share.sig);
+      syncFicheButtons(unsynced);
+      if (!canShorten()) return setFicheUrl(long, "");
       if (st.share) {
-        if (packed === syncedPacked) { setFicheUrl(shortUrl(st.share.id), ficheOnline() ? SYNCED : SYNCED_KEPT); return; }
-        if (!shortFailed) setFicheUrl(shortUrl(st.share.id), "Mise à jour de la fiche en ligne…");
-      } else {
-        if (!ficheOnline()) { clearTimeout(shortTimer); setFicheUrl(siteBase() + "#fiche=" + packed, LOCAL_ONLY); return; }
-        const id = shortIds.get(packed);
-        if (id) { setFicheUrl(shortUrl(id), "Lien court prêt."); return; }
-        setFicheUrl(siteBase() + "#fiche=" + packed, "Création du lien court…");
+        if (!unsynced) return setFicheUrl(shortUrl(st.share.id), ficheOnline() ? SYNCED : SYNCED_KEPT);
+        if (sig === failedSig) return setFicheUrl(long, "Pas de réseau : la fiche en ligne n’est pas à jour. Le message garde le lien long, qui contient la version actuelle.");
+        return setFicheUrl(shortUrl(st.share.id), UNSYNCED, long);
       }
-      clearTimeout(shortTimer); shortTimer = setTimeout(() => shorten(packed), shortFailed ? 4000 : 1200);
-    }, 300);
+      const id = shortIds.get(sig);
+      if (id) return setFicheUrl(shortUrl(id), "Lien court prêt.");
+      if (!ficheOnline()) return setFicheUrl(long, LOCAL_ONLY);
+      if (sig === failedSig) return setFicheUrl(long, OFFLINE);
+      setFicheUrl("", PENDING, long);
+    }, now ? 0 : 300);
   }
-  $("lkFiche").addEventListener("change", (e) => { try { localStorage.setItem("easyroute.ficheLink", e.target.checked ? "1" : "0"); } catch (_) {} updateMessage(); refreshFiche(); });
+  $("lkFiche").addEventListener("change", (e) => { try { localStorage.setItem("easyroute.ficheLink", e.target.checked ? "1" : "0"); } catch (_) {} updateMessage(); refreshFiche(true); });
   try { $("lkFiche").checked = localStorage.getItem("easyroute.ficheLink") !== "0"; } catch (_) {}
   $("ficheCopy").addEventListener("click", () => {
     if (!ficheUrl) return;

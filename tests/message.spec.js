@@ -1,4 +1,4 @@
-const { test, expect, placePoint, message, openAsTeam } = require("./helpers");
+const { test, expect, placePoint, message, openAsTeam, publishFiche } = require("./helpers");
 
 async function fillInfos(page) {
   await page.fill("#eventName", "Concert Test");
@@ -74,8 +74,9 @@ test("le lien agenda du message est court et redirige vers Google Agenda", async
   await fillInfos(page);
   await page.selectOption("#callDur", "6");
   await page.click("#tabMsg");
-  await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=/);
-  const id = (await page.getAttribute("#ficheOpen", "href")).split("#s=")[1];
+  // Avant l'envoi : lien Google Agenda complet (rien n'est encore en ligne)
+  expect(await message(page)).toContain("https://calendar.google.com/calendar/render?action=TEMPLATE");
+  const id = (await publishFiche(page)).split("#s=")[1];
   await expect.poll(() => message(page)).toContain("📅 Ajouter à Google Agenda :\nhttp://localhost:4173/#a=" + id);
   // L'équipier ouvre le lien agenda : Easy Route le renvoie vers Google Agenda, événement pré-rempli
   const ctx = await context.browser().newContext();
@@ -96,6 +97,7 @@ test.describe("service des liens courts injoignable", () => {
   test("le message garde le lien Google Agenda complet", async ({ page }) => {
     await fillInfos(page);
     await page.click("#tabMsg");
+    await page.click("#msgCopy");
     await expect(page.locator("#ficheState")).toHaveText(/injoignable/);
     expect(await message(page)).toContain("https://calendar.google.com/calendar/render?action=TEMPLATE");
   });
@@ -103,9 +105,7 @@ test.describe("service des liens courts injoignable", () => {
 
 test("le message contient aussi un lien .ics court, qui suit les modifications", async ({ page }) => {
   await fillInfos(page);
-  await page.click("#tabMsg");
-  await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=/);
-  const id = (await page.getAttribute("#ficheOpen", "href")).split("#s=")[1];
+  const id = (await publishFiche(page)).split("#s=")[1];
   const icsUrl = `https://api.easyroute.cloud/ics/${id}`;
   await expect.poll(() => message(page)).toContain("📆 Ajouter au calendrier (iPhone, Mac, Outlook) :\n" + icsUrl);
   const get = () => page.evaluate((u) => fetch(u).then((r) => r.text()), icsUrl);
@@ -116,6 +116,8 @@ test("le message contient aussi un lien .ics court, qui suit les modifications",
   // Changement d'heure après l'envoi : le même lien .ics donne la nouvelle heure
   await page.fill("#callTime", "10:00");
   await page.dispatchEvent("#callTime", "change");
+  await expect(page.locator("#ficheState")).toHaveText(/Modifications pas encore en ligne/);
+  await page.click("#ficheSync");
   await expect(page.locator("#ficheState")).toHaveText(/Fiche en ligne à jour/);
   await expect.poll(get).toContain("DTSTART:20261024T080000Z");
   // La case « liens agenda » retire les deux liens
@@ -129,8 +131,7 @@ test.describe("ancienne version du Worker (sans .ics)", () => {
   test.use({ legacyWorker: true });
   test("pas de lien .ics dans le message", async ({ page }) => {
     await fillInfos(page);
-    await page.click("#tabMsg");
-    await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=/);
+    await publishFiche(page);
     await page.waitForTimeout(500);
     expect(await message(page)).not.toContain("/ics/");
   });

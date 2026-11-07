@@ -73,6 +73,24 @@ async function placePoint(page, key, fx, fy) {
 
 const message = (page) => page.locator("#msg").inputValue();
 
+// La fiche ne part en ligne qu'au moment d'un envoi : premier toucher de « Copier le lien de la fiche ».
+// Renvoie le lien court.
+async function publishFiche(page) {
+  await page.click("#tabMsg");
+  await page.waitForTimeout(400); // état du lien recalculé après la dernière saisie
+  await page.click("#ficheCopy");
+  await expect(page.locator("#ficheState")).toHaveText(/Fiche en ligne à jour|Lien court prêt|existait déjà/);
+  await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=T[0-9a-f]{9}$/);
+  return page.getAttribute("#ficheOpen", "href");
+}
+
+// Requêtes qui écrivent sur le service des liens courts (création, mise à jour, suppression)
+function trackWrites(target) {
+  const sent = [];
+  target.on("request", (req) => { if (/api\.easyroute\.cloud\/f/.test(req.url()) && req.method() !== "GET") sent.push(req.method()); });
+  return sent;
+}
+
 // Ouvre un lien de fiche comme un équipier : autre navigateur, rien d'enregistré
 async function openAsTeam(browser, url) {
   const ctx = await browser.newContext();
@@ -82,4 +100,4 @@ async function openAsTeam(browser, url) {
   return team;
 }
 
-module.exports = { test, expect, fixture, tapSheet, placePoint, message, setupRoutes, openAsTeam, shortStore };
+module.exports = { test, expect, fixture, tapSheet, placePoint, message, setupRoutes, openAsTeam, shortStore, publishFiche, trackWrites };
