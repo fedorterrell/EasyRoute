@@ -8,7 +8,7 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 
 ## Fonctions
 
-**Plan A4 paysage** (JPG ou PNG, 3508 × 2480 px à 300 dpi)
+**Plan A4 paysage** (JPG ou PNG, 3508 × 2480 px à 300 dpi, ou PDF prêt à imprimer)
 - Vue satellite autour de l’adresse, avec les noms des rues.
 - Repère rouge du lieu, que l’on peut faire glisser si la recherche l’a mal placé.
 - Points utiles en couleur : accès technique / déchargement, accès personnel, catering, parking personnel, loges. Chacun a un libellé modifiable et une couleur au choix (touchez sa pastille).
@@ -16,6 +16,7 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 - Carte QR en haut à gauche, à sa taille d’impression réelle, et carte des infos pratiques en bas à gauche.
 - Logo du lieu, de la salle ou de votre entreprise en haut à droite (PNG, JPG, SVG ou WebP), en trois tailles, sur fond blanc ou non. Le dernier logo utilisé est mémorisé sur l’appareil.
 - Fond au choix : satellite, ou votre propre capture d’écran (Google Maps, plan du lieu…).
+- En PDF, la page fait exactement un A4 paysage (aucun réglage à l’impression) et la carte QR est aussi un lien cliquable vers le lieu.
 
 **Étiquette QR seule** (PNG, JPG ou SVG cliquable), à insérer par exemple dans Trimble LayOut.
 - Le QR ouvre le lieu dans **Google Maps** ou lance le guidage dans **Waze**.

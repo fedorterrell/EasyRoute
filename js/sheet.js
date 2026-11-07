@@ -266,11 +266,11 @@ export async function drawSheet(ctx, W, H, wait) {
     if (st.live && st.bg === "shot") drawArrow(ctx, st.live.map((p) => toOut(v, p)), s);
   }
   // QR card, top-left, true print size
-  const L = current.sheetLabel;
+  const L = current.sheetLabel, q = qrCardRect(W);
   const m = mmPx(5) * s;
   drawInfoCard(ctx, m, H - m, W - m, s); // practical info: bottom-left
   if (L) {
-    const cw = L.W * s, ch = L.H * s, x = m, y = m, r = mmPx(3) * s; // QR card: top-left
+    const [x, y, cw, ch] = q, r = mmPx(3) * s; // QR card: top-left
     ctx.save();
     ctx.shadowColor = "rgba(0,0,0,.3)"; ctx.shadowBlur = mmPx(2.5) * s; ctx.shadowOffsetY = mmPx(0.6) * s;
     roundRect(ctx, x, y, cw, ch, r); ctx.fillStyle = "#fff"; ctx.fill();
@@ -283,6 +283,11 @@ export async function drawSheet(ctx, W, H, wait) {
   drawLogo(ctx, W, s);
   ctx.restore();
   return failed;
+}
+// QR card on a sheet W px wide: [x, y, width, height], or null without a label (also used for the PDF link)
+export function qrCardRect(W) {
+  const L = current.sheetLabel, s = W / SHEET.W, m = mmPx(5) * s;
+  return L ? [m, m, L.W * s, L.H * s] : null;
 }
 // Logo, top-right: height in mm from the size setting, width capped so long logos stay reasonable
 function drawLogo(ctx, W, s) {
