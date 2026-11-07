@@ -79,6 +79,8 @@ Quand `css/easyroute.css` ou `js/easyroute.js` change, changez aussi le numéro 
 
 Le dossier `tests/` contient des tests qui ouvrent Easy Route dans un vrai navigateur (Chromium, format ordinateur et format téléphone) et vérifient les fonctions principales : liens Google Maps et Waze, points utiles et couleurs, repère déplaçable, plan A4, logo, message équipe, agenda (.ics et Google Agenda), session, lieux enregistrés, export et import. Ils n’appellent aucun service extérieur.
 
+Le code du service des liens courts (`worker/easyroute-fiches.js`) a ses propres tests, dans `worker/test/` : ils font tourner le vrai Worker sur une base SQLite en mémoire et vérifient la création, la lecture, la mise à jour et la suppression avec la clé, les refus (origine, clé, format, taille), le fichier `.ics`, le ménage des fiches anciennes et la mise à niveau d’une ancienne base. Ils demandent Node 22.13 ou plus récent, sans rien installer : `npm run test:worker`.
+
 Ils tournent tout seuls sur GitHub à chaque pull request et à chaque mise à jour de `main` (onglet *Actions*). Une pull request dont les tests échouent affiche une croix rouge : ne la fusionnez pas sans vérifier.
 
 Pour les lancer sur votre Mac :

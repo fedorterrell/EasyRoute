@@ -3,7 +3,8 @@
   "private": true,
   "description": "Tests automatiques d'Easy Route (le site lui-même n'a besoin d'aucune installation).",
   "scripts": {
-    "test": "playwright test"
+    "test": "playwright test",
+    "test:worker": "node --test worker/test/*.test.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.0"
