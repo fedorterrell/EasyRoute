@@ -1609,7 +1609,32 @@
       syncFicheButtons();
     } catch (_) { offline(); }
   }
-  function syncFicheButtons() { $("ficheNew").hidden = !st.share; }
+  function syncFicheButtons() { $("ficheNew").hidden = $("ficheDel").hidden = !st.share; }
+  // Delete the fiche stored by the Worker (its key proves it is ours): the short link stops working.
+  // « Lien de la fiche » is then unticked, so nothing is sent again.
+  confirmClick($("ficheDel"), "Supprimer pour de bon ?", async () => {
+    const share = st.share, btn = $("ficheDel");
+    if (!share) return;
+    clearTimeout(shortTimer);
+    btn.disabled = true; say("Suppression de la fiche en ligne…");
+    try {
+      const r = await fetch(SHORT_API + "/f/" + share.id, { method: "DELETE", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ key: share.key }) });
+      const res = await r.json().catch(() => ({}));
+      // 404 + gone: already deleted or expired (an older Worker answers 404 without « gone »)
+      if (!(r.ok && res.deleted) && !(r.status === 404 && res.gone)) throw new Error(r.status);
+    } catch (_) {
+      btn.disabled = false;
+      say("Suppression impossible pour l’instant (pas de réseau, ou service pas encore à jour). Réessayez dans un moment.", "warn");
+      return;
+    }
+    btn.disabled = false;
+    if (st.share && st.share.id === share.id) st.share = null;
+    syncedPacked = ""; shortFailed = false;
+    $("lkFiche").checked = false;
+    try { localStorage.setItem("easyroute.ficheLink", "0"); } catch (_) {}
+    syncFicheButtons(); autosave(); updateMessage(); refreshFiche();
+    say("Fiche en ligne supprimée : son lien ne fonctionne plus. « Lien de la fiche » est décoché, rien n’est renvoyé en ligne.", "ok");
+  });
   confirmClick($("ficheNew"), "Créer un nouveau lien ?", () => {
     st.share = null; syncedPacked = ""; syncFicheButtons(); autosave();
     say(ficheOnline() ? "Un nouveau lien va être créé. L’ancien garde la version déjà envoyée."

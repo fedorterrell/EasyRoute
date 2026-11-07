@@ -12,7 +12,7 @@ async function setupRoutes(context, { workerDown = false, legacyWorker = false }
     if (workerDown) return r.abort();
     const req = r.request(), url = new URL(req.url()), cors = { "Access-Control-Allow-Origin": "*" };
     const reply = (status, body) => r.fulfill({ status, headers: cors, contentType: "application/json", body: JSON.stringify(body) });
-    if (req.method() === "OPTIONS") return r.fulfill({ status: 204, headers: { ...cors, "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS", "Access-Control-Allow-Headers": "Content-Type" } });
+    if (req.method() === "OPTIONS") return r.fulfill({ status: 204, headers: { ...cors, "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS", "Access-Control-Allow-Headers": "Content-Type" } });
     if (req.method() === "POST" && url.pathname === "/f") {
       const d = JSON.parse(req.postData()).d;
       const id = "T" + require("crypto").randomBytes(5).toString("hex").slice(0, 9);
@@ -27,6 +27,12 @@ async function setupRoutes(context, { workerDown = false, legacyWorker = false }
       if (!row) return reply(404, { error: "introuvable" });
       if (!row.key || row.key !== body.key) return reply(403, { error: "clé" });
       row.d = body.d; row.ics = body.ics || null; return reply(200, { id: m[1], ics: true });
+    }
+    if (req.method() === "DELETE" && m && !legacyWorker) {
+      const row = shortStore.get(m[1]), body = JSON.parse(req.postData() || "{}");
+      if (!row) return reply(404, { error: "introuvable", gone: true });
+      if (!row.key || row.key !== body.key) return reply(403, { error: "clé" });
+      shortStore.delete(m[1]); return reply(200, { deleted: true });
     }
     if (req.method() === "GET" && m && shortStore.has(m[1])) return reply(200, { d: shortStore.get(m[1]).d });
     const mi = url.pathname.match(/^\/ics\/(.+)$/);

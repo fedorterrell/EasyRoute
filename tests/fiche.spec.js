@@ -1,4 +1,4 @@
-const { test, expect, placePoint, message, openAsTeam, setupRoutes } = require("./helpers");
+const { test, expect, placePoint, message, openAsTeam, setupRoutes, shortStore } = require("./helpers");
 
 async function ficheLink(page) {
   await page.click("#tabMsg");
@@ -94,6 +94,28 @@ test("lien court existant : il reste à jour, « Nouveau lien » arrête l’env
   await page.fill("#contactName", "Paul");
   await page.waitForTimeout(2000);
   expect(sent).toEqual([]);
+});
+
+test("« Supprimer la fiche en ligne » efface la fiche, et rien n’est renvoyé", async ({ page, context }) => {
+  const url = await ficheLink(page), id = url.split("#s=")[1];
+  expect(shortStore.has(id)).toBe(true);
+  await expect(page.locator("#ficheDel")).toBeVisible();
+  await page.click("#ficheDel"); await page.click("#ficheDel");
+  await expect(page.locator("#status")).toHaveText(/Fiche en ligne supprimée/);
+  expect(shortStore.has(id)).toBe(false);
+  await expect(page.locator("#lkFiche")).not.toBeChecked();
+  await expect(page.locator("#ficheDel")).toBeHidden();
+  await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#fiche=/);
+  // Plus aucun envoi ensuite
+  const sent = [];
+  page.on("request", (req) => { if (/api\.easyroute\.cloud\/f/.test(req.url()) && req.method() !== "GET") sent.push(req.method()); });
+  await page.fill("#contactName", "Paul");
+  await page.waitForTimeout(2000);
+  expect(sent).toEqual([]);
+  // L'équipe qui ouvre l'ancien lien voit qu'il a expiré
+  const team = await openAsTeam(context.browser(), url);
+  await expect(team.locator("#status")).toHaveText(/introuvable ou a expiré/);
+  await team.context().close();
 });
 
 test("lien court inconnu ou expiré : message clair", async ({ page }) => {

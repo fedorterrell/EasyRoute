@@ -6,6 +6,7 @@
 //   POST /f         corps {"d": "<fiche>"}                 ->  {"id": "k7Qp2xA9bC", "key": "<clé secrète>"}
 //   PUT  /f/<id>    corps {"d": "<fiche>", "key": "<clé>"} ->  {"id": "k7Qp2xA9bC"}   (même lien, contenu mis à jour)
 //   GET  /f/<id>                                           ->  {"d": "<fiche>"}
+//   DELETE /f/<id>  corps {"key": "<clé>"}                  ->  {"deleted": true}   (le lien ne marche plus)
 //   GET  /ics/<id>                                         ->  événement d'agenda (.ics) de la fiche
 //   GET  /health                                           ->  ok
 //
@@ -13,7 +14,7 @@
 // __EASYROUTE_ID__ qu'il contient est remplacé par l'identifiant de la fiche à la lecture.
 //
 // Chaque fiche reçoit un identifiant aléatoire (impossible à deviner) et une clé secrète que seul
-// l'appareil qui l'a créée connaît : lui seul peut la modifier ensuite. La base ne garde qu'une
+// l'appareil qui l'a créée connaît : lui seul peut la modifier ou la supprimer ensuite. La base ne garde qu'une
 // empreinte SHA-256 de la clé, jamais la clé elle-même.
 
 const DEFAULT_ORIGINS = ["https://easyroute.cloud", "https://www.easyroute.cloud", "https://fedorterrell.github.io"];
@@ -44,7 +45,7 @@ function corsHeaders(request, env) {
   const origin = request.headers.get("Origin") || "";
   return {
     "Access-Control-Allow-Origin": isAllowed(origin, env) ? origin : allowedOrigins(env)[0],
-    "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
@@ -124,6 +125,20 @@ export default {
       if (!row.key_hash || !body.key || row.key_hash !== await sha256(body.key)) return json({ error: "Clé invalide." }, 403, cors);
       await env.DB.prepare("UPDATE fiches SET data = ?, updated = ?, ics = ? WHERE id = ?").bind(body.d, Date.now(), body.ics, m[1]).run();
       return json({ id: m[1], ics: true }, 200, cors);
+    }
+
+    // Supprimer une fiche (et son .ics), avec sa clé : le lien ne fonctionne plus
+    if (request.method === "DELETE" && m) {
+      if (!isAllowed(request.headers.get("Origin") || "", env)) return json({ error: "Origine non autorisée." }, 403, cors);
+      const body = await request.text();
+      let key = "";
+      try { key = body.length < 1024 ? String(JSON.parse(body).key || "") : ""; } catch (_) { /* clé absente */ }
+      await ensureTable(env.DB);
+      const row = await env.DB.prepare("SELECT key_hash FROM fiches WHERE id = ?").bind(m[1]).first();
+      if (!row) return json({ error: "Fiche introuvable ou expirée.", gone: true }, 404, cors);
+      if (!row.key_hash || !key || row.key_hash !== await sha256(key)) return json({ error: "Clé invalide." }, 403, cors);
+      await env.DB.prepare("DELETE FROM fiches WHERE id = ?").bind(m[1]).run();
+      return json({ deleted: true }, 200, cors);
     }
 
     // Lire une fiche (pas de cache : une fiche peut avoir été mise à jour)
