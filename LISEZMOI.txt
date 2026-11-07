@@ -4,8 +4,10 @@ Easy Route ! — mise en ligne
    Easy Route est servi par GitHub Pages depuis la branche main, sous le domaine
    easyroute.cloud (fichier CNAME). Chaque fusion sur main le met à jour en une à
    deux minutes, sans étape de compilation.
-   Quand css/easyroute.css ou js/easyroute.js change, changez aussi le numéro ?v=…
-   qui suit leur nom dans index.html (par exemple la date du jour).
+   Quand css/easyroute.css ou un fichier js/ change, changez aussi son numéro ?v=…
+   dans index.html (par exemple la date du jour). Les modules js/*.js (sauf
+   qrcode.js) partagent un seul numéro : celui de js/main.js, repris pour chaque
+   module dans l'import map d'index.html.
 
 2. Les liens courts
    Le dossier worker/ contient le service Cloudflare (Worker + base D1) qui range
