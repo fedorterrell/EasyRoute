@@ -11,6 +11,9 @@ module.exports = defineConfig({
     locale: "fr-FR",
     timezoneId: "Europe/Paris",
     acceptDownloads: true,
+    // Les requêtes d'un service worker échappent aux faux services des tests (page.route) : sw.js est
+    // donc bloqué partout, sauf dans tests/horsligne.spec.js qui l'autorise exprès.
+    serviceWorkers: "block",
   },
   // Le site est un fichier statique : un simple serveur HTTP suffit.
   webServer: {
