@@ -1,6 +1,6 @@
 # Easy Route !
 
-Une adresse, et vous obtenez un **plan d’accès A4**, une **étiquette QR** et un **message d’itinéraire** prêt à envoyer à l’équipe par WhatsApp ou e-mail.
+Un lieu ou une adresse, et vous obtenez un **plan d’accès A4**, une **étiquette QR** et un **message d’itinéraire** prêt à envoyer à l’équipe par WhatsApp ou e-mail.
 
 **➜ Utiliser l’outil : https://easyroute.cloud**
 
