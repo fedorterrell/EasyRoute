@@ -43,17 +43,18 @@ const ficheHash = ficheMatch ? ficheMatch[2] : "";
 if (ficheHash) {
   // Team view: never touch this device's saved session
   (async () => {
-    let packed = ficheHash, problem = "Ce lien de fiche est incomplet ou abîmé. Demandez un nouveau lien à l’expéditeur.";
+    let packed = ficheHash, offline = false, problem = "Ce lien de fiche est incomplet ou abîmé. Demandez un nouveau lien à l’expéditeur.";
     if (ficheMatch[1] === "a") say("Ouverture de Google Agenda…");
     if (ficheMatch[1] === "s" || ficheMatch[1] === "a") {
       packed = "";
       try {
         const r = await fetch(SHORT_API + "/f/" + encodeURIComponent(ficheHash));
-        if (r.ok) packed = (await r.json()).d || "";
+        if (r.ok) { packed = (await r.json()).d || ""; offline = r.headers.get("X-Easyroute-Offline") === "1"; } // copie gardée par sw.js
         else if (r.status === 404) problem = "Cette fiche est introuvable ou a expiré. Demandez un nouveau lien à l’expéditeur.";
       } catch (_) { problem = "Impossible de charger la fiche pour l’instant (pas de réseau ?). Réessayez dans un moment."; }
     }
     if (packed && await openFiche(packed)) {
+      if (offline && ficheMatch[1] !== "a") say("Hors ligne : voici la fiche telle qu’elle était à sa dernière ouverture sur cet appareil. Elle a peut-être changé depuis.", "warn");
       if (ficheMatch[1] !== "a") return;
       // Calendar link: go straight to Google Calendar with the event of the fiche (always its latest version)
       const ev = calEvent();
@@ -82,3 +83,5 @@ if (!ficheHash) fontDbDo("readonly", (s) => s.get("logo")).then((saved) => { if 
 if (document.fonts && document.fonts.load) {
   Promise.all([document.fonts.load('400 40px "Barlow"'), document.fonts.load('400 20px "JetBrains Mono"')]).then(() => { render(); fontState(); }, () => {});
 }
+// Hors ligne : sw.js garde le site, les fiches déjà ouvertes et les tuiles de carte sur l'appareil
+if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register("sw.js").catch(() => {});

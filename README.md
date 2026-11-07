@@ -38,6 +38,11 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 - Si ce service est injoignable, Easy Route met à la place un lien long qui contient toute la fiche : il fonctionne sans serveur.
 - *Modifier dans Easy Route* reprend la fiche dans l’éditeur, à la place du travail en cours.
 
+**Sans réseau**
+- Après un premier passage, Easy Route s’ouvre aussi sans connexion (quai de déchargement, sous-sol, mode avion) : le site, le travail en cours et les lieux enregistrés restent utilisables.
+- Une fiche déjà ouverte sur le téléphone se rouvre sans réseau depuis son lien ; un message prévient qu’elle est peut-être plus ancienne que la version en ligne. Une fiche jamais ouverte sur cet appareil demande du réseau.
+- Les tuiles de carte déjà affichées sont gardées (environ 1 500), donc le plan d’une fiche déjà vue reste visible. La recherche d’adresse et l’envoi de la fiche, eux, attendent le réseau.
+
 **Sessions et lieux enregistrés**
 - Le travail en cours (adresse, position, points utiles, flèches, infos pratiques) est repris automatiquement à la prochaine ouverture. *Nouveau lieu* efface tout pour repartir de zéro.
 - *Enregistrer ce lieu* garde une fiche complète, logo compris, que l’on recharge depuis la liste *Lieux enregistrés*. Enregistrer à nouveau un lieu du même nom le met à jour.
@@ -78,6 +83,7 @@ Le bouton *Partager* envoie le plan A4 et le message ensemble vers WhatsApp, Mai
 | `js/fiche.js` | Fiche partagée : liens long et court, envoi en ligne au partage, suppression, vue équipe, plan en grand. |
 | `js/guide.js` | Premiers pas et exemple. |
 | `js/planning.js` | Autres horaires de la journée (balance, ouverture des portes…), à côté du Get-In. |
+| `sw.js` | Service worker : garde le site, les fiches déjà ouvertes et les tuiles de carte pour le hors ligne (réseau d’abord quand il est là). |
 | `js/qrcode.js` | Bibliothèque qrcode-generator 1.4.4, copiée telle quelle depuis npm (servie par le site, sans CDN). |
 | `manifest.webmanifest`, `icons/` | Installation sur l’écran d’accueil (nom, icône, plein écran). |
 | `tests/`, `package.json`, `playwright.config.js`, `.github/` | Tests automatiques (voir ci-dessous). |
@@ -88,7 +94,7 @@ Quand `css/easyroute.css` ou un fichier `js/` change, changez aussi son numéro 
 
 ## Tests automatiques
 
-Le dossier `tests/` contient des tests qui ouvrent Easy Route dans un vrai navigateur (Chromium, format ordinateur et format téléphone) et vérifient les fonctions principales : liens Google Maps et Waze, points utiles et couleurs, repère déplaçable, plan A4, logo, message équipe, agenda (.ics et Google Agenda), session, lieux enregistrés, export et import. Ils n’appellent aucun service extérieur.
+Le dossier `tests/` contient des tests qui ouvrent Easy Route dans un vrai navigateur (Chromium, format ordinateur et format téléphone) et vérifient les fonctions principales : liens Google Maps et Waze, points utiles et couleurs, repère déplaçable, plan A4, logo, message équipe, agenda (.ics et Google Agenda), session, lieux enregistrés, export et import, ouverture sans réseau. Ils n’appellent aucun service extérieur.
 
 Le code du service des liens courts (`worker/easyroute-fiches.js`) a ses propres tests, dans `worker/test/` : ils font tourner le vrai Worker sur une base SQLite en mémoire et vérifient la création, la lecture, la mise à jour et la suppression avec la clé, les refus (origine, clé, format, taille), le fichier `.ics`, le ménage des fiches anciennes et la mise à niveau d’une ancienne base. Ils demandent Node 22.13 ou plus récent, sans rien installer : `npm run test:worker`.
 
@@ -135,7 +141,7 @@ Seul le **lien de fiche court** envoie des données au service d’Easy Route (`
 
 - Les liens courts `maps.app.goo.gl` ne peuvent pas être générés automatiquement (Google ne propose pas d’API pour cela). On peut en coller un à la main dans *Lien personnalisé*.
 - Le QR en mode Google Maps recherche le nom et l’adresse ; il ne suit pas un repère déplacé à la main. Le mode Waze et les liens du message, eux, pointent sur le repère.
-- La vue satellite et la recherche d’adresse demandent une connexion internet.
+- La recherche d’adresse et les zones de carte jamais affichées sur l’appareil demandent une connexion internet.
 
 ## Licence
 
