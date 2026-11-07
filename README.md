@@ -66,14 +66,24 @@ Le bouton *Partager* envoie le plan A4 et le message ensemble vers WhatsApp, Mai
 | --- | --- |
 | `index.html` | La page : structure et contenu (formulaire, onglets, fiche équipe). |
 | `css/easyroute.css` | L’apparence : couleurs, mise en page, version téléphone. |
-| `js/easyroute.js` | Tout le fonctionnement : carte, plan A4, étiquette, message, agenda, fiche partagée, sessions et lieux. |
+| `js/main.js` | Point d’entrée (module ES chargé par `index.html`) : onglets, appel de l’`init()` de chaque module dans l’ordre, démarrage. |
+| `js/core.js` | Éléments communs : raccourcis vers la page, état partagé (`st`, `shared`), constantes (`POI_TYPES`, `SHORT_API`…), petits outils. |
+| `js/links.js` | Lien Google Maps / Waze et étiquette QR. |
+| `js/sheet.js` | Plan A4 : carte, flèches, points utiles, carte d’infos, logo, aperçu et gestes sur le plan. |
+| `js/places.js` | Position du lieu : coordonnées, recherche d’adresse, suggestions de lieux, lien Google Maps collé. |
+| `js/assets.js` | Logo, capture d’écran de fond, police de l’étiquette. |
+| `js/message.js` | Message équipe, liens d’itinéraire, agenda (.ics, Google Agenda). |
+| `js/export.js` | Téléchargements et feuille de partage du téléphone. |
+| `js/storage.js` | Session, lieux enregistrés, export et import des lieux. |
+| `js/fiche.js` | Fiche partagée : liens long et court, envoi en ligne au partage, suppression, vue équipe, plan en grand. |
+| `js/guide.js` | Premiers pas et exemple. |
 | `js/qrcode.js` | Bibliothèque qrcode-generator 1.4.4, copiée telle quelle depuis npm (servie par le site, sans CDN). |
 | `manifest.webmanifest`, `icons/` | Installation sur l’écran d’accueil (nom, icône, plein écran). |
 | `tests/`, `package.json`, `playwright.config.js`, `.github/` | Tests automatiques (voir ci-dessous). |
 
 Le site est servi par GitHub Pages depuis la branche `main`, sous le domaine `easyroute.cloud` (fichier `CNAME` ; DNS chez Cloudflare, lignes GitHub en *DNS only*). Les anciennes adresses `fedorterrell.github.io/easyroute/…` redirigent vers le domaine. Chaque fusion sur `main` met le site à jour en une à deux minutes. Aucune étape de compilation : les fichiers sont servis tels quels.
 
-Quand `css/easyroute.css` ou `js/easyroute.js` change, changez aussi le numéro `?v=…` qui suit leur nom dans `index.html` (par exemple la date du jour). Sinon, un téléphone peut garder l’ancienne version en mémoire quelques minutes. GitHub Actions le vérifie à chaque pull request et à chaque mise à jour de `main` : un fichier modifié sans nouveau numéro fait échouer le contrôle *Numéros ?v= à jour*. Pour vérifier avant d’envoyer : `.github/check-version.sh origin/main`.
+Quand `css/easyroute.css` ou un fichier `js/` change, changez aussi son numéro `?v=…` dans `index.html` (par exemple la date du jour). Les modules `js/*.js` (tous sauf `qrcode.js`) partagent un seul numéro : celui de `js/main.js`, repris pour chaque module dans l’*import map* juste au-dessus (les imports entre modules n’ont pas de `?v=`, c’est elle qui le leur ajoute). Changez-le partout à la fois, et ajoutez-y tout nouveau module. Les navigateurs sans import map (iOS avant 16.4) chargent les modules sans numéro : le site fonctionne, la mise à jour peut seulement tarder un peu. Sinon, un téléphone peut garder l’ancienne version en mémoire quelques minutes. GitHub Actions le vérifie à chaque pull request et à chaque mise à jour de `main` : un fichier modifié sans nouveau numéro, ou un module absent de l’import map, fait échouer le contrôle *Numéros ?v= à jour*. Pour vérifier avant d’envoyer : `.github/check-version.sh origin/main`.
 
 ## Tests automatiques
 
@@ -97,7 +107,7 @@ Ces fichiers ne servent qu’aux tests : le site lui-même n’a besoin d’aucu
 
 Le dossier `worker/` contient le code du service qui range les fiches partagées : un Cloudflare Worker relié à une base D1 (offre gratuite).
 
-- Adresse : `https://api.easyroute.cloud` (constante `SHORT_API` dans `js/easyroute.js`), domaine personnalisé du Worker (onglet *Domains*). L’ancienne adresse `https://easyroute-fiches.piotrskotnicki.workers.dev` répond toujours, pour les liens déjà envoyés.
+- Adresse : `https://api.easyroute.cloud` (constante `SHORT_API` dans `js/core.js`), domaine personnalisé du Worker (onglet *Domains*). L’ancienne adresse `https://easyroute-fiches.piotrskotnicki.workers.dev` répond toujours, pour les liens déjà envoyés.
 - `POST /f` avec `{"d": "<fiche compressée>"}` renvoie `{"id": "…", "key": "…"}` ; `PUT /f/<id>` avec `{"d": …, "key": …}` met la fiche à jour sous le même lien ; `GET /f/<id>` renvoie la fiche ; `GET /ics/<id>` renvoie son événement d’agenda (.ics), envoyé par Easy Route avec la fiche (champ `ics`) ; `DELETE /f/<id>` avec `{"key": …}` supprime la fiche et son .ics. Quiconque a le lien peut lire la fiche ; la modifier ou la supprimer demande sa clé secrète. Les navigateurs ne peuvent créer des fiches que depuis le site Easy Route (contrôle de l’en-tête `Origin`), mais ce contrôle n’arrête pas un script : la création est donc limitée par une règle Cloudflare (voir plus bas).
 - Identifiant aléatoire de 10 caractères (impossible à deviner) ; la clé secrète n’est connue que de l’appareil qui a créé la fiche, la base n’en garde qu’une empreinte.
 - Fiches conservées environ 13 mois après leur dernière modification (`KEEP_DAYS`), puis effacées.
@@ -106,7 +116,7 @@ Le dossier `worker/` contient le code du service qui range les fiches partagées
 
 ## Personnaliser
 
-- **Ajouter un type de point utile** : ajoutez une ligne à la fin du tableau `POI_TYPES` de `js/easyroute.js` (clé, nom, libellé par défaut, emoji, couleurs).
+- **Ajouter un type de point utile** : ajoutez une ligne à la fin du tableau `POI_TYPES` de `js/core.js` (clé, nom, libellé par défaut, emoji, couleurs).
 - **Police de l’étiquette** : Barlow par défaut. Le bouton *Charger une police* accepte un fichier `.ttf`, `.otf` ou `.woff2` ; la police est mémorisée dans le navigateur de l’appareil et n’est jamais envoyée en ligne. *Police par défaut* revient à Barlow. Aucune police commerciale n’est fournie dans ce dépôt.
 
 ## Services externes et crédits
