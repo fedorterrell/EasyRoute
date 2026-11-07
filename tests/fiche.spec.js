@@ -1,11 +1,39 @@
-const { test, expect, placePoint, message, openAsTeam, setupRoutes, shortStore } = require("./helpers");
+const { test, expect, placePoint, message, openAsTeam, setupRoutes, shortStore, publishFiche, trackWrites } = require("./helpers");
 
-async function ficheLink(page) {
+const ficheLink = publishFiche;
+
+test("rien n’est envoyé en ligne pendant la saisie : la fiche part au moment de l’envoi", async ({ page }) => {
+  const sent = trackWrites(page);
+  await page.fill("#contactName", "Julien");
+  await page.fill("#accessCode", "1234");
   await page.click("#tabMsg");
-  await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=T[0-9a-f]{9}$/);
-  await expect(page.locator("#ficheState")).toHaveText(/Lien court prêt|Fiche en ligne à jour/);
-  return page.getAttribute("#ficheOpen", "href");
-}
+  await expect(page.locator("#ficheState")).toHaveText(/Rien n’est encore en ligne/);
+  expect(await message(page)).toContain("🔗 Fiche complète (plan, accès, itinéraires) :\n(lien créé à l’envoi)");
+  await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#fiche=/); // aperçu sans serveur
+  await page.waitForTimeout(2000);
+  expect(sent).toEqual([]);
+  // Premier toucher : la fiche part en ligne, le message prend le lien court
+  await page.click("#msgCopy");
+  await expect(page.locator("#status")).toHaveText(/Touchez à nouveau « Copier le message »/);
+  expect(sent).toEqual(["POST"]);
+  const url = await page.getAttribute("#ficheOpen", "href");
+  expect(url).toMatch(/#s=T[0-9a-f]{9}$/);
+  expect(await message(page)).toContain("🔗 Fiche complète (plan, accès, itinéraires) :\n" + url);
+  // Second toucher : copie, sans nouvel envoi
+  await page.click("#msgCopy");
+  await expect(page.locator("#status")).not.toHaveText(/Touchez à nouveau/);
+  // Une modification ne part pas toute seule…
+  await page.fill("#contactName", "Marie");
+  await expect(page.locator("#ficheState")).toHaveText(/Modifications pas encore en ligne/);
+  await expect(page.locator("#ficheSync")).toBeVisible();
+  await page.waitForTimeout(2000);
+  expect(sent).toEqual(["POST"]);
+  // … mais au prochain envoi, ou avec « Mettre à jour la fiche en ligne »
+  await page.click("#ficheSync");
+  await expect(page.locator("#ficheState")).toHaveText(/Fiche en ligne à jour/);
+  await expect(page.locator("#ficheSync")).toBeHidden();
+  expect(sent).toEqual(["POST", "PUT"]);
+});
 
 test("le lien de fiche figure dans le message et ouvre la fiche en lecture seule", async ({ page, context }) => {
   await page.fill("#eventName", "Concert Test");
@@ -70,29 +98,35 @@ test("case « Lien de la fiche » décochée : rien n’est envoyé en ligne", a
   await page.click("#tabMsg");
   await expect(page.locator("#ficheState")).toHaveText(/Rien n’est envoyé en ligne/);
   await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#fiche=/);
-  await page.waitForTimeout(2000); // au-delà du délai d'envoi du lien court
+  // Même au moment de l'envoi
+  await page.click("#msgCopy");
+  await page.waitForTimeout(1000);
   expect(sent).toEqual([]);
   expect(await message(page)).not.toContain("api.easyroute.cloud/ics/");
-  // Recocher la case crée le lien court
+  // Recocher la case : le lien court est créé au prochain envoi
   await page.check("#lkFiche");
+  await expect(page.locator("#ficheState")).toHaveText(/Rien n’est encore en ligne/);
+  expect(sent).toEqual([]);
+  await page.click("#msgCopy");
   await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=T[0-9a-f]{9}$/);
   expect(sent).toEqual(["POST"]);
   await ctx.close();
 });
 
-test("lien court existant : il reste à jour, « Nouveau lien » arrête l’envoi", async ({ page }) => {
+test("lien court existant : il peut encore être mis à jour, « Nouveau lien » arrête l’envoi", async ({ page }) => {
   const url = await ficheLink(page);
   await page.uncheck("#lkFiche");
   await page.fill("#contactName", "Marie");
-  await page.waitForTimeout(2000); // mise à jour du lien existant
+  await expect(page.locator("#ficheState")).toHaveText(/Modifications pas encore en ligne/);
+  await page.click("#ficheSync");
   await expect(page.locator("#ficheState")).toHaveText(/existait déjà/);
   await expect(page.locator("#ficheOpen")).toHaveAttribute("href", url);
-  const sent = [];
-  page.on("request", (req) => { if (/api\.easyroute\.cloud\/f/.test(req.url()) && req.method() !== "GET") sent.push(req.method()); });
+  const sent = trackWrites(page);
   await page.click("#ficheNew"); await page.click("#ficheNew");
   await expect(page.locator("#ficheState")).toHaveText(/Rien n’est envoyé en ligne/);
   await page.fill("#contactName", "Paul");
-  await page.waitForTimeout(2000);
+  await page.click("#msgCopy");
+  await page.waitForTimeout(1000);
   expect(sent).toEqual([]);
 });
 
@@ -106,11 +140,11 @@ test("« Supprimer la fiche en ligne » efface la fiche, et rien n’est renvoy�
   await expect(page.locator("#lkFiche")).not.toBeChecked();
   await expect(page.locator("#ficheDel")).toBeHidden();
   await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#fiche=/);
-  // Plus aucun envoi ensuite
-  const sent = [];
-  page.on("request", (req) => { if (/api\.easyroute\.cloud\/f/.test(req.url()) && req.method() !== "GET") sent.push(req.method()); });
+  // Plus aucun envoi ensuite, même en partageant
+  const sent = trackWrites(page);
   await page.fill("#contactName", "Paul");
-  await page.waitForTimeout(2000);
+  await page.click("#msgCopy");
+  await page.waitForTimeout(1000);
   expect(sent).toEqual([]);
   // L'équipe qui ouvre l'ancien lien voit qu'il a expiré
   const team = await openAsTeam(context.browser(), url);
@@ -129,7 +163,9 @@ test.describe("service des liens courts injoignable", () => {
   test("le message garde le lien long, qui ouvre la fiche", async ({ page, context }) => {
     await page.fill("#contactName", "Julien");
     await page.click("#tabMsg");
+    await page.click("#msgCopy");
     await expect(page.locator("#ficheState")).toHaveText(/injoignable/);
+    await expect(page.locator("#status")).toHaveText(/Touchez à nouveau/);
     const url = await page.getAttribute("#ficheOpen", "href");
     expect(url).toMatch(/#fiche=1/);
     expect(await message(page)).toContain(url);
@@ -140,18 +176,13 @@ test.describe("service des liens courts injoignable", () => {
   });
 });
 
-const shortId = async (page) => {
-  await page.click("#tabMsg");
-  await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=T[0-9a-f]{9}$/);
-  return (await page.getAttribute("#ficheOpen", "href")).split("#s=")[1];
-};
+const shortId = async (page) => (await publishFiche(page)).split("#s=")[1];
 
 test("modifier la fiche garde le même lien, et l’équipe voit la nouvelle version", async ({ page, context }) => {
   await page.fill("#contactName", "Julien");
   const id = await shortId(page);
   const url = await page.getAttribute("#ficheOpen", "href");
   await page.fill("#contactName", "Marie");
-  await expect(page.locator("#ficheState")).toHaveText(/Fiche en ligne à jour/);
   expect(await shortId(page)).toBe(id);
   const team = await openAsTeam(context.browser(), url);
   await expect(team.locator("#fInfos")).toContainText("Marie");
@@ -159,7 +190,9 @@ test("modifier la fiche garde le même lien, et l’équipe voit la nouvelle ver
   // La session garde le lien après réouverture
   await page.waitForTimeout(800);
   await page.reload();
-  expect(await shortId(page)).toBe(id);
+  await page.click("#tabMsg");
+  await expect(page.locator("#ficheState")).toHaveText(/Fiche en ligne à jour/); // la version en ligne est mémorisée
+  await expect(page.locator("#ficheOpen")).toHaveAttribute("href", url);
   await expect(page.locator("#ficheNew")).toBeVisible();
 });
 
@@ -172,8 +205,8 @@ test("« Nouveau lien » et « Nouveau lieu » donnent un autre lien", async ({ 
   await page.click("#venueNew"); await page.click("#venueNew");
   await page.fill("#addr", "1 rue du Test, 73000 Chambéry");
   await page.fill("#coords", "45.5666, 5.9212"); await page.locator("#coords").blur();
-  await expect.poll(async () => (await page.getAttribute("#ficheOpen", "href")) || "").toMatch(/#s=T[0-9a-f]{9}$/);
-  await expect.poll(async () => (await page.getAttribute("#ficheOpen", "href")).split("#s=")[1]).not.toBe(id2);
+  const id3 = await shortId(page);
+  expect(id3).not.toBe(id2);
 });
 
 test.describe("ancienne version du Worker (sans clé)", () => {
@@ -182,8 +215,8 @@ test.describe("ancienne version du Worker (sans clé)", () => {
     await page.fill("#contactName", "Julien");
     const id1 = await shortId(page);
     await page.fill("#contactName", "Marie");
-    await expect.poll(async () => (await page.getAttribute("#ficheOpen", "href")).split("#s=")[1]).not.toBe(id1);
-    const url = await page.getAttribute("#ficheOpen", "href");
+    const url = await publishFiche(page);
+    expect(url.split("#s=")[1]).not.toBe(id1);
     const team = await openAsTeam(context.browser(), url);
     await expect(team.locator("#fInfos")).toContainText("Marie");
     await team.context().close();
@@ -191,7 +224,7 @@ test.describe("ancienne version du Worker (sans clé)", () => {
 });
 
 test("fiche équipe : le plan s’ouvre en grand, avec zoom", async ({ page, context }) => {
-  const url = await (async () => { await page.click("#tabMsg"); await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=/); return page.getAttribute("#ficheOpen", "href"); })();
+  const url = await publishFiche(page);
   const team = await openAsTeam(context.browser(), url);
   await expect(team.locator("#ficheView")).toBeVisible();
   await expect(team.locator("#sheet")).toHaveCSS("touch-action", "manipulation"); // la page défile au-dessus du petit plan
@@ -236,6 +269,7 @@ test("la fiche ne montre que les liens d'itinéraire choisis pour le message", a
   const stored = () => page.evaluate((id) => fetch("https://api.easyroute.cloud/f/" + id).then((r) => r.text()), url.split("#s=")[1]);
   const before = await stored();
   for (const c of ["g", "gps"]) await page.locator(`#lk-loges-${c}`).setChecked(false);
+  await publishFiche(page);
   await expect.poll(stored).not.toBe(before);
   const team2 = await openAsTeam(context.browser(), url);
   await expect(team2.locator("#ficheView")).toBeVisible();

@@ -18,6 +18,8 @@ test("premiers pas : le guide s'affiche à la première visite et se coche au fi
   // 4. Envoi : Copier dans « Message équipe »
   await step("send").click();
   await expect(page.locator("#paneMsg")).toBeVisible();
+  await page.click("#msgCopy"); // premier toucher : la fiche part en ligne
+  await expect(page.locator("#status")).toHaveText(/Touchez à nouveau/);
   await page.click("#msgCopy");
   await expect(step("send")).toHaveClass(/done/);
   await expect(guide).toHaveClass(/complete/);
@@ -74,10 +76,8 @@ test("« Voir un exemple » charge une fiche complète, avec confirmation si du 
 });
 
 test("la fiche équipe n'affiche pas le guide", async ({ page, context }) => {
-  await page.click("#tabMsg");
-  await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=/);
-  const url = await page.getAttribute("#ficheOpen", "href");
-  const { openAsTeam } = require("./helpers");
+  const { openAsTeam, publishFiche } = require("./helpers");
+  const url = await publishFiche(page);
   const team = await openAsTeam(context.browser(), url);
   await expect(team.locator("#ficheView")).toBeVisible();
   await expect(team.locator("#guide")).toBeHidden();
