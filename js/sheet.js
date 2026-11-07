@@ -127,11 +127,15 @@ export function callText() {
     if (y && m && dd) out = new Date(y, m - 1, dd).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
   }
   if (t) {
-    const [h, mi] = t.split(":");
-    const ts = (+h) + "h" + (mi || "00");
+    const ts = timeText(t);
     out = out ? out + " à " + ts : ts;
   }
   return out;
+}
+// "08:30" → "8h30"
+function timeText(t) {
+  const [h, mi] = t.split(":");
+  return (+h) + "h" + (mi || "00");
 }
 // [label, value, emoji] in display order
 export function infoRows() {
@@ -139,6 +143,7 @@ export function infoRows() {
   const rows = [];
   const call = callText();
   if (call) rows.push(["Get-In", call, "\u{1F552}"]);
+  st.planning.forEach((p) => { if (p.time) rows.push([p.label.trim() || "Horaire", timeText(p.time), "\u{1F552}"]); });
   const contact = [v("contactName"), v("contactPhone")].filter(Boolean).join(" — ");
   if (contact) rows.push(["Contact sur place", contact, "\u{1F464}"]);
   if (v("parking")) rows.push(["Parking", v("parking"), "\u{1F17F}\u{FE0F}"]);

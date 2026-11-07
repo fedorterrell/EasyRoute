@@ -71,6 +71,10 @@ details.info > .info-body { display: grid; gap: 12px; margin-top: 12px; }
 .poicolor::-moz-color-swatch { border: 0; border-radius: 50%; }
 .poidot { display: inline-block; flex: none; margin-left: 3px; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--line); }
 .pois { display: grid; gap: 8px; }
+.planlist { display: grid; gap: 8px; }
+.planlist:empty { display: none; }
+.planrow { display: grid; grid-template-columns: minmax(0, 1fr) 6.8em auto; gap: 8px; align-items: center; }
+#planAdd { justify-self: start; }
 .poirow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .poirow input[type=text] { width: auto; flex: 1 1 170px; padding: 6px 9px; }
 .poirow .btn[aria-pressed="true"], #movePin[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }

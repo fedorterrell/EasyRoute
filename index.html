@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600&family=JetBrains+Mono:wght@400&display=swap">
 <!-- ?v= : à changer à chaque mise à jour des fichiers, pour que les téléphones rechargent la nouvelle version -->
-<link rel="stylesheet" href="css/easyroute.css?v=2026.11.07">
+<link rel="stylesheet" href="css/easyroute.css?v=2026.11.07d">
 </head>
 <body>
 <div class="wrap">
@@ -123,6 +123,16 @@
               <option value="8">8 h</option>
               <option value="10">10 h</option>
             </select>
+          </div>
+          <div class="field">
+            <span class="lbl" id="planLbl">Autres horaires</span>
+            <div class="planlist" id="planList" role="group" aria-labelledby="planLbl"></div>
+            <button type="button" class="btn sm" id="planAdd">Ajouter un horaire</button>
+            <p class="hint">Le même jour que le Get-In : balance, ouverture des portes, spectacle… Ils s’ajoutent aux infos pratiques.</p>
+            <datalist id="planNames">
+              <option value="Déchargement"><option value="Montage"><option value="Balance"><option value="Repas">
+              <option value="Ouverture des portes"><option value="Spectacle"><option value="Démontage">
+            </datalist>
           </div>
           <div class="field">
             <span class="lbl" id="contactLbl">Contact sur place</span>
@@ -388,19 +398,20 @@
 <script type="importmap">
 {
   "imports": {
-    "./js/core.js":    "./js/core.js?v=2026.11.07e",
-    "./js/links.js":   "./js/links.js?v=2026.11.07e",
-    "./js/sheet.js":   "./js/sheet.js?v=2026.11.07e",
-    "./js/places.js":  "./js/places.js?v=2026.11.07e",
-    "./js/assets.js":  "./js/assets.js?v=2026.11.07e",
-    "./js/message.js": "./js/message.js?v=2026.11.07e",
-    "./js/export.js":  "./js/export.js?v=2026.11.07e",
-    "./js/storage.js": "./js/storage.js?v=2026.11.07e",
-    "./js/fiche.js":   "./js/fiche.js?v=2026.11.07e",
-    "./js/guide.js":   "./js/guide.js?v=2026.11.07e"
+    "./js/core.js":    "./js/core.js?v=2026.11.07f",
+    "./js/links.js":   "./js/links.js?v=2026.11.07f",
+    "./js/sheet.js":   "./js/sheet.js?v=2026.11.07f",
+    "./js/places.js":  "./js/places.js?v=2026.11.07f",
+    "./js/assets.js":  "./js/assets.js?v=2026.11.07f",
+    "./js/message.js": "./js/message.js?v=2026.11.07f",
+    "./js/export.js":  "./js/export.js?v=2026.11.07f",
+    "./js/storage.js": "./js/storage.js?v=2026.11.07f",
+    "./js/fiche.js":   "./js/fiche.js?v=2026.11.07f",
+    "./js/guide.js":   "./js/guide.js?v=2026.11.07f",
+    "./js/planning.js": "./js/planning.js?v=2026.11.07f"
   }
 }
 </script>
-<script type="module" src="js/main.js?v=2026.11.07e"></script>
+<script type="module" src="js/main.js?v=2026.11.07f"></script>
 </body>
 </html>
