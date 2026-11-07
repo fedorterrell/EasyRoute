@@ -382,6 +382,24 @@
 
 <!-- qrcode-generator 1.4.4 (Kazuhiko Arase, MIT), servi depuis le dépôt -->
 <script src="js/qrcode.js?v=1.4.4"></script>
-<script src="js/easyroute.js?v=2026.11.07"></script>
+<!-- Modules du site (js/main.js et ce qu'il importe). Les imports entre modules n'ont pas de ?v= :
+     cette table leur donne à tous le même numéro que js/main.js. À changer ensemble, à chaque mise à jour d'un module. -->
+<script type="importmap">
+{
+  "imports": {
+    "./js/core.js":    "./js/core.js?v=2026.11.07b",
+    "./js/links.js":   "./js/links.js?v=2026.11.07b",
+    "./js/sheet.js":   "./js/sheet.js?v=2026.11.07b",
+    "./js/places.js":  "./js/places.js?v=2026.11.07b",
+    "./js/assets.js":  "./js/assets.js?v=2026.11.07b",
+    "./js/message.js": "./js/message.js?v=2026.11.07b",
+    "./js/export.js":  "./js/export.js?v=2026.11.07b",
+    "./js/storage.js": "./js/storage.js?v=2026.11.07b",
+    "./js/fiche.js":   "./js/fiche.js?v=2026.11.07b",
+    "./js/guide.js":   "./js/guide.js?v=2026.11.07b"
+  }
+}
+</script>
+<script type="module" src="js/main.js?v=2026.11.07b"></script>
 </body>
 </html>
