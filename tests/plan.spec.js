@@ -51,6 +51,33 @@ test("le plan A4 se télécharge en JPG", async ({ page }) => {
   expect(download.suggestedFilename()).toMatch(/^plan-.+\.jpg$/);
 });
 
+test("le plan A4 se télécharge en PDF, avec la carte QR cliquable", async ({ page }) => {
+  await page.fill("#eventName", "Concert Été");
+  const qrUrl = await page.locator("#url").textContent();
+  const [download] = await Promise.all([page.waitForEvent("download"), page.click("#sheetPdf")]);
+  expect(download.suggestedFilename()).toMatch(/^plan-.+\.pdf$/);
+  const pdf = Buffer.concat(await (await download.createReadStream()).toArray());
+  const txt = pdf.toString("latin1");
+  expect(txt.startsWith("%PDF-1.4\n")).toBe(true);
+  expect(txt.trimEnd().endsWith("%%EOF")).toBe(true);
+  expect(txt).toContain("/MediaBox [0 0 841.89 595.28]");
+  expect(txt).toContain("/Width 3508 /Height 2480");
+  // Table des objets : chaque position pointe bien sur « n 0 obj »
+  const start = +txt.match(/startxref\n(\d+)\n%%EOF/)[1];
+  expect(txt.slice(start, start + 4)).toBe("xref");
+  const lines = txt.slice(start).split("\n"), count = +lines[1].split(" ")[1];
+  for (let i = 1; i < count; i++) expect(txt.slice(+lines[2 + i].slice(0, 10)).startsWith(i + " 0 obj")).toBe(true);
+  // Lien sur la carte QR, en haut à gauche (5 mm du bord = 14,17 pt), vers la même adresse que le QR
+  const link = txt.match(/\/Rect \[([\d. ]+)\][^\n]*\/URI \(([^)]*)\)/);
+  expect(link[2]).toBe(qrUrl);
+  const [x1, , , y2] = link[1].split(" ").map(Number);
+  expect(x1).toBeCloseTo(14.17, 1);
+  expect(y2).toBeCloseTo(595.28 - 14.17, 1);
+  // Titre du document (UTF-16 : « Concert Été — plan d’accès »)
+  const hex = [..."Concert Été — plan d’accès"].map((c) => c.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0")).join("");
+  expect(txt).toContain("/Title <FEFF" + hex + ">");
+});
+
 test("logo : sur le plan, et en option sur l’étiquette", async ({ page }) => {
   await page.click("#tabLabel");
   await expect(page.locator("#logoOnLabel")).toBeDisabled();
