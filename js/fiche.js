@@ -31,8 +31,12 @@ function ficheData() {
   const links = {}; ["main", ...POI_TYPES.filter((t) => st.pois[t.key]).map((t) => t.key)].forEach((k) => {
     links[k] = LINK_COLS.filter((c) => linkSel[k][c[0]]).map((c) => c[0]).join(",");
   });
-  return { v: 1, fields: f, app: shared.app, layout: shared.layout, place: rPt(st.place), center: rPt(st.center), zoom: st.zoom, pois,
+  const data = { v: 1, fields: f, app: shared.app, layout: shared.layout, place: rPt(st.place), center: rPt(st.center), zoom: st.zoom, pois,
     poiLabels: labels, poiColors: colors, links, arrows: st.arrows.sat.map((a) => a.map(([x, y]) => [r7(x), r7(y)])) };
+  // Other times of the day (only when there are some: fiches without them keep the same signature)
+  const planning = st.planning.filter((p) => p.time || p.label.trim()).map((p) => ({ label: p.label.trim(), time: p.time }));
+  if (planning.length) data.planning = planning;
+  return data;
 }
 async function packFiche(obj) {
   const bytes = new TextEncoder().encode(JSON.stringify(obj));

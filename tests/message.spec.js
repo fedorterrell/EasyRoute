@@ -136,3 +136,40 @@ test.describe("ancienne version du Worker (sans .ics)", () => {
     expect(await message(page)).not.toContain("/ics/");
   });
 });
+
+test("autres horaires : message, agenda, session et fiche équipe", async ({ page, context }) => {
+  await fillInfos(page);
+  const addTime = async (label, time) => {
+    await page.click("#planAdd");
+    const row = page.locator("#planList .planrow").last();
+    await row.locator('input[type="text"]').fill(label);
+    await row.locator('input[type="time"]').fill(time);
+  };
+  await addTime("Balance", "14:00");
+  await addTime("Spectacle", "20:30");
+  await addTime("", ""); // ligne vide : ignorée
+  await page.click("#tabMsg");
+  let msg = await message(page);
+  expect(msg).toContain("🕒 Get-In : samedi 24 octobre à 8h30\n🕒 Balance : 14h00\n🕒 Spectacle : 20h30\n👤 Contact sur place");
+  // Description de l'agenda (lignes .ics repliées à 75 octets)
+  const [download] = await Promise.all([page.waitForEvent("download"), page.click("#msgIcs")]);
+  const ics = Buffer.concat(await (await download.createReadStream()).toArray()).toString().replace(/\r\n /g, "");
+  expect(ics).toContain("🕒 Balance : 14h00\\n🕒 Spectacle : 20h30");
+  // Retirer un horaire
+  await page.click("#tabSheet");
+  await page.locator("#planList .planrow").first().getByRole("button", { name: /Retirer/ }).click();
+  msg = await message(page);
+  expect(msg).not.toContain("Balance");
+  // Gardés avec la session
+  await page.waitForTimeout(800);
+  await page.reload();
+  await expect(page.locator("#planList .planrow")).toHaveCount(2);
+  await expect(page.locator('#planList .planrow input[type="text"]').first()).toHaveValue("Spectacle");
+  // Sur la fiche équipe
+  const url = await publishFiche(page);
+  const team = await openAsTeam(context.browser(), url);
+  await expect(team.locator("#fInfos")).toContainText("Spectacle20h30");
+  // « Nouveau lieu » les efface
+  await page.click("#venueNew"); await page.click("#venueNew");
+  await expect(page.locator("#planList .planrow")).toHaveCount(0);
+});

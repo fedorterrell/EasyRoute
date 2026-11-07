@@ -30,6 +30,7 @@ export const st = {
   arrows: { sat: [], shot: [] }, shot: null, live: null,
   pois: {},      // key -> { lat, lng } for each useful point placed on the map
   placing: null, // key of the point being placed
+  planning: [],  // other times of the day: [{ label, time }] (see planning.js)
 };
 // Useful points: add a line here to offer another kind of point.
 export const POI_TYPES = [

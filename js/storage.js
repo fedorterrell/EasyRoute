@@ -5,6 +5,7 @@ import { poiColor, schedule, setTool, syncPois } from "./sheet.js";
 import { fontDbDo, useLogo } from "./assets.js";
 import { updateMessage } from "./message.js";
 import { deliver } from "./export.js";
+import { cleanPlanning, syncPlanning } from "./planning.js";
 
 // Everything describing the job (not the device settings) is captured in a snapshot.
 export const JOB_FIELDS = ["name", "addr", "custom", "coords", "useName", "qrmm", "showUrl", "roads", "pin",
@@ -18,6 +19,7 @@ export function snapshot() {
     poiLabels: Object.fromEntries(POI_TYPES.map((t) => [t.key, $("poiLabel-" + t.key).value])),
     poiColors: { ...st.poiColors },
     share: st.share || null, // owned short link { id, key, ics, sig } of this job
+    planning: st.planning.map((p) => ({ label: p.label, time: p.time })),
   };
 }
 export function applyState(d) {
@@ -28,6 +30,7 @@ export function applyState(d) {
   st.place = d.place || null; st.center = d.center || (d.place ? { ...d.place } : null); st.zoom = d.zoom || 18;
   if (st.place) els.coords.value = st.place.lat.toFixed(7) + ", " + st.place.lng.toFixed(7);
   st.pois = d.pois || {}; st.arrows.sat = d.arrows || []; st.placing = null;
+  st.planning = cleanPlanning(d.planning); syncPlanning();
   POI_TYPES.forEach((t) => { $("poiLabel-" + t.key).value = (d.poiLabels && d.poiLabels[t.key]) || t.label; });
   if (d.poiColors) st.poiColors = { ...d.poiColors };
   POI_TYPES.forEach((t) => { $("poiColor-" + t.key).value = poiColor(t); });

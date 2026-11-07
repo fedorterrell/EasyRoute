@@ -53,6 +53,7 @@ function demoState() {
     place: at(46.1879295, 6.1989208), center: at(46.18795, 6.19885),
     pois: { dock: at(46.18768, 6.19935), staff: at(46.18815, 6.19862), catering: at(46.18832, 6.19962), parking: at(46.18842, 6.19808) },
     poiLabels: { dock: "Quai de déchargement" },
+    planning: [{ label: "Balance", time: "14:00" }, { label: "Ouverture des portes", time: "19:30" }, { label: "Spectacle", time: "20:30" }],
     arrows: [[pt(46.18842, 6.19818), pt(46.18832, 6.19834), pt(46.18822, 6.19850), pt(46.18817, 6.19858)]],
     share: null,
   };

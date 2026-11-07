@@ -23,7 +23,7 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 - Logo ajouté à l’étiquette si on coche la case (au-dessus du texte, ou au-dessus du QR en disposition empilée).
 
 **Message équipe**
-- Nom de l’événement, nom du lieu, adresse et infos pratiques : Get-In (date et heure), contact sur place, parking, code d’accès, hauteur max, consignes d’accès.
+- Nom de l’événement, nom du lieu, adresse et infos pratiques : Get-In (date et heure), autres horaires de la journée (balance, ouverture des portes, spectacle…), contact sur place, parking, code d’accès, hauteur max, consignes d’accès.
 - Liens d’itinéraire **Google Maps**, **Waze** et **Plans (Apple)**, plus les coordonnées GPS, pour le lieu et pour chaque point utile. Un tableau permet de choisir quels liens inclure pour chaque point, pour garder un message court ; ces choix sont mémorisés sur l’appareil.
 - **Agenda** : à partir de la date et de l’heure du Get-In (durée au choix : 1, 4, 6, 8 ou 10 h ; journée entière sans heure), un lien « Ajouter à Google Agenda » dans le message, qui marche sur tous les téléphones (lien court `…/#a=…` quand la fiche a un lien court : Easy Route redirige vers Google Agenda avec la dernière version de la fiche), un lien court vers le fichier `.ics` servi par le Worker (s’ouvre dans Calendrier sur iPhone et Mac, dans Outlook ; suit lui aussi les modifications), et un fichier `.ics` (iPhone, Mac, Outlook, la plupart des Android) avec rappel 1 h avant.
 - Boutons *Copier*, *Ouvrir dans WhatsApp*, *Envoyer par e-mail* et, sur téléphone, *Partager* (message + plan A4 en une fois).
@@ -77,6 +77,7 @@ Le bouton *Partager* envoie le plan A4 et le message ensemble vers WhatsApp, Mai
 | `js/storage.js` | Session, lieux enregistrés, export et import des lieux. |
 | `js/fiche.js` | Fiche partagée : liens long et court, envoi en ligne au partage, suppression, vue équipe, plan en grand. |
 | `js/guide.js` | Premiers pas et exemple. |
+| `js/planning.js` | Autres horaires de la journée (balance, ouverture des portes…), à côté du Get-In. |
 | `js/qrcode.js` | Bibliothèque qrcode-generator 1.4.4, copiée telle quelle depuis npm (servie par le site, sans CDN). |
 | `manifest.webmanifest`, `icons/` | Installation sur l’écran d’accueil (nom, icône, plein écran). |
 | `tests/`, `package.json`, `playwright.config.js`, `.github/` | Tests automatiques (voir ci-dessous). |
