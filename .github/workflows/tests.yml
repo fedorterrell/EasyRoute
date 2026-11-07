@@ -20,6 +20,17 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
 
+  # Vrai code du Worker des liens courts, sur une base SQLite en mémoire (aucune installation)
+  worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm run test:worker
+
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
